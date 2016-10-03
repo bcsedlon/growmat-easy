@@ -56,6 +56,10 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+  "
 #define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L-  "
 
+#define UISTATE_ALARMLIST 1
+
+int uiState, uiPage;
+
 #include <Wire.h>
 
 // SIM800L
@@ -91,6 +95,8 @@ class Keypad_I2C2 : public Keypad_I2C {
       if(bitMap[0] == 4) return 'B';
       if(bitMap[0] == 1) return 'D';
       if(bitMap[1] == 1) return '#';
+      
+      if(bitMap[2] == 1) return '0';
       return NO_KEY;
     }
     // Returns a single key only. Retained for backwards compatibility.
@@ -170,7 +176,7 @@ bool lightAuto, heaterAuto, ventAuto, cyclerAuto;
 byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
 
 unsigned long uiTime = 0; // ui counter
-int uiState = 0;
+//int uiState = 0;
 
 unsigned long cyclerDuration = 0; // cycler counter
 unsigned long cTime = 0;
@@ -321,7 +327,7 @@ MENU_VALUE lightValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lig
 MENU_ITEM lightValueAlarm_item   ={ {"LIGH ALARM  "},    ITEM_VALUE,  0,        MENU_TARGET(&lightValueAlarm_value) };
 
 MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightValueAlarm_item};
-MENU_ITEM menu_submenu5 = { {"ALARMS->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
+MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 /*                   
   // values to use 
 //////////////////////////////
@@ -351,11 +357,11 @@ MENU_ITEM item_state    = { {"Select Input"}, ITEM_VALUE,  0,        MENU_TARGET
  */ 
 MENU_ITEM item_testme   = { {"CALL!"},  ITEM_ACTION, 0,        MENU_TARGET(&callAction) };
 MENU_ITEM item_info   = { {"INFO"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
-
+MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
                  
                    //        List of items in menu level
 //MENU_LIST const root_list[]   = { &item_checkme, &item_barme,  &item_state, &item_testme, &menu_submenu1, &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5 };//&item_bazme, &item_bakme,
-MENU_LIST const root_list[]   = { &menu_submenu1, &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5,&item_testme, &item_info };//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1, &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5,&item_alarmList, &item_testme, &item_info };//&item_bazme, &item_bakme,
 
                   // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -364,6 +370,7 @@ OMMenuMgr2 Menu(&menu_root, MENU_DIGITAL, &kpd);
 
 
 int saveMessage(char msg[]) {
+ // return 0;
    //using namespace OMEEPROM;
 /*   
     for(int i=0; i < MESSAGELENGTH; i++) {
@@ -374,8 +381,9 @@ int saveMessage(char msg[]) {
 
     //char buffer[MESSAGELEGTH];
     DateTime now = rtc.now();
-    sprintf(msg, "%d2/%d2 %d2:%d2 ", now.month(), now.day(), now.hour(), now.minute());
-    /*
+    //sprintf(msg, " %d2/%d2 %d2:%d2 ", now.month(), now.day(), now.hour(), now.minute());
+    //Serial.println(msg);
+    
     String m = String();
     if(now.day() < 10) 
       m += '0';
@@ -391,14 +399,16 @@ int saveMessage(char msg[]) {
     m += ':';
     if(now.minute() < 10) 
       m += '0';
-    m += now.minute(); 
-    *//*
+    m += now.minute();
+    m.toCharArray(msg, 12);
+    msg[11]= ' '; 
+  /*    *//*
     int p = 0;
     if(now.day() < 10) 
       msg[p++] = '0';
     msg[p] = itoa(now.day());
     p=2;
-    
+  
     m += '/';
     if(now.month() < 10) 
       m += '0';
@@ -411,13 +421,14 @@ int saveMessage(char msg[]) {
     if(now.minute() < 10) 
       m += '0';
     m += now.minute(); 
-    
+   
+ 
     itoa(now.hour(),msg,10);
     msg[2]=':'; 
     itoa(now.minute(),msg+3,10);
     String(" POWER UP").toCharArray(msg + 5, MESSAGELENGTH - 5);
 //         "0123456789ABCDEF" 
-*/
+ */
     
     int offset;
     OMEEPROM::read(MESSAGESOFFSET_ADDR, offset);
@@ -429,11 +440,16 @@ int saveMessage(char msg[]) {
     }
     offset = (offset + 1) %  MESSAGESCOUNT;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, offset);
+
+    //Serial.println("write");
+    //Serial.println(msg);
+    
     return offset;
 }
 
 void readMessage(int index, byte* msg) {
-    using namespace OMEEPROM;
+ // return;
+//    using namespace OMEEPROM;
 /*
     for(int i=0; i < MESSAGELENGTH; i++) {
       read(MESSAGESOFFSET_ADDR + i, *(msg + i));
@@ -441,16 +457,18 @@ void readMessage(int index, byte* msg) {
     return;
 */
     int offset;
-    read(MESSAGESOFFSET_ADDR, offset);
+    OMEEPROM::read(MESSAGESOFFSET_ADDR, offset);
     offset--;
     if(offset >= MESSAGESCOUNT)
       offset = 0;
     offset = (offset + (MESSAGESCOUNT -index )) % MESSAGESCOUNT;
     //offset = 0;
     for(int i=0; i < MESSAGELENGTH; i++) {
-      read(MESSAGES_ADDR + offset * MESSAGELENGTH + i, *(msg+i));
+      OMEEPROM::read(MESSAGES_ADDR + offset * MESSAGELENGTH + i, *(msg+i));
     }
-    *(msg+MESSAGELENGTH+1) = 0;
+    *(msg+MESSAGELENGTH) = 0;
+    //Serial.println("read");
+    //Serial.println(*msg);
 }
 
 void loadEEPROM() {
@@ -563,21 +581,23 @@ void setup() {
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   }
+  char msg[MESSAGELENGTH + 1];
 /*
   DateTime now = rtc.now();
-  char msg[MESSAGELENGTH + 1];
+
   //String("        POWER UP").toCharArray(msg, MESSAGELENGTH);
   itoa(now.hour(),msg,10);
   msg[2]=':'; 
   itoa(now.minute(),msg+3,10);
   String(" POWER UP").toCharArray(msg + 5, MESSAGELENGTH - 5);
 //       "0123456789ABCDEF" 
+  saveMessage(msg);
 */
   saveMessage(MESSAGE_ALARM_POWERON);
 
 
   
-  char msg[MESSAGELENGTH + 1];
+  //char msg[MESSAGELENGTH + 1];
   for(int i = 0; i< MESSAGESCOUNT; i++) {
     readMessage(i, msg);
     Serial.println(msg);
@@ -611,9 +631,29 @@ bool getControl(bool a, byte mode) {
 
 void loop() {
 
- if(kpd.getKey2())
-  Menu.enable(true);
-
+ char key = kpd.getKey2();
+ if(key == '#') {
+    Menu.enable(true);
+    uiState = 0;
+    uiPage = 0;
+ } 
+ else if(key == '0') {
+    uiAlarmList();
+    //Menu.enable(false);
+    //uiState = UISTATE_ALARMLIST;
+    //uiPage = 0;
+    //uiScreen(); 
+ }
+ else if(!Menu.enable()) {
+  if(key == 'A')
+    uiPage--;
+  if(key == 'B')
+    uiPage++;  
+  //if(uiState == UISTATE_ALARMS) {
+   uiScreen();  
+  //}
+ }
+ 
  if(millis() > (cTime + 1000)) {
     cTime = millis();
     cyclerDuration++;
@@ -648,7 +688,7 @@ void loop() {
   }
   for(int i = 0; i < 100; i++)
     light += analogRead(LIGHTPIN) / 10;
-  light /= 10;
+  light /= 100;
   // ------------------------
   
 
@@ -673,7 +713,7 @@ void loop() {
     //lightAuto = l > lOn;
     //lightAuto = l < lOff;
   } else {
-    lightAuto = (lOff < l < lOn) ? false : true;
+    lightAuto = (lOff > l > lOn) ? false : true;
     //lightAuto = l < lOn;
     //lightAuto = l > lOff;
   }
@@ -695,9 +735,11 @@ void loop() {
 
 
   // TODO: Delay all alarms
-  if(!tempHighAlarm) { 
-    tempHighAlarm |= (temperature > tempHighTempAlarm) ? 3 : 0;
-    saveMessage(MESSAGE_ALARM_TEMPHIGH);
+  if(!tempHighAlarm) {
+    if (temperature > tempHighTempAlarm) {
+      saveMessage(MESSAGE_ALARM_TEMPHIGH);
+      tempHighAlarm |=  3;
+    }
   }
   else {
     if(temperature > tempHighTempAlarm)
@@ -707,8 +749,10 @@ void loop() {
   }
   
   if(!tempLowAlarm) {
-    tempLowAlarm |= (temperature < tempLowTempAlarm) ? 3 : 0;
-    saveMessage(MESSAGE_ALARM_TEMPLOW);
+    if(temperature < tempLowTempAlarm) {
+      tempLowAlarm |=  3;
+      saveMessage(MESSAGE_ALARM_TEMPLOW);
+    }
   }
   else {
     if(temperature < tempLowTempAlarm)
@@ -717,26 +761,30 @@ void loop() {
       tempLowAlarm &= 2;
   }
   
-  if(!lightHighAlarm) {
-    lightHighAlarm |= (lightControl && (light > lightValueAlarm)) ? 3 : 0;
-    saveMessage(MESSAGE_ALARM_LIGHTHIGH);
+  if(!lightLowAlarm) {
+    if(lightControl && (light > lightValueAlarm)) {
+      lightLowAlarm |=  3;
+      saveMessage(MESSAGE_ALARM_LIGHTLOW);     
+    }
   }
   else {
     if(lightControl && (light > lightValueAlarm))
-      lightHighAlarm |= 1;
-    else
-      lightHighAlarm &= 2;
-   }
-
-  if(!lightLowAlarm) {
-    lightLowAlarm |= (!lightControl && (light < lightValueAlarm)) ? 3 : 0;
-    saveMessage(MESSAGE_ALARM_LIGHTLOW);
-  }
-  else {
-    if(!lightControl && (light < lightValueAlarm))
       lightLowAlarm |= 1;
     else
       lightLowAlarm &= 2;
+   }
+
+  if(!lightHighAlarm) {
+    if((!lightControl) && (light < lightValueAlarm)) {
+      lightHighAlarm |=  3;
+      saveMessage(MESSAGE_ALARM_LIGHTHIGH);
+    }
+  }
+  else {
+    if((!lightHighAlarm) && (light < lightValueAlarm))
+      lightHighAlarm |= 1;
+    else
+      lightHighAlarm &= 2;
    }
     
   alarm = tempHighAlarm | tempLowAlarm | lightHighAlarm | lightLowAlarm;
@@ -768,6 +816,12 @@ void loop() {
       Serial.println(humidity);
       Serial.print("L=");
       Serial.println(light);
+
+      char msg[MESSAGELENGTH + 1];
+      for(int i = 0; i< MESSAGESCOUNT; i++) {
+        readMessage(i, msg);
+        Serial.println(msg);
+      }
     }
   }
 
@@ -878,8 +932,37 @@ void uiInstrument(bool instrument, byte mode) {
   mode ? lcd.print("M") : lcd.print("A");
 }
 
+void uiAlarmList() {
+  Menu.enable(false);
+  uiState = UISTATE_ALARMLIST;
+}
+void uiScreen() {
+  //Menu.enable(false);
+  if(uiState == UISTATE_ALARMLIST) {
+     char msg[MESSAGELENGTH + 1];
+     uiPage = min(uiPage, MESSAGESCOUNT -2);
+     uiPage = max(uiPage, 0);
 
-void uiInfo() {
+     //Serial.println(uiPage);
+     //lcd.clear();    
+     lcd.setCursor(0, 0);
+     readMessage(uiPage, msg);
+     //if(uiPage==0)
+     // msg[0] = '-';
+     lcd.print(msg);
+     //Serial.println(msg);
+     lcd.setCursor(0, 1);
+     readMessage(uiPage + 1, msg);
+     //if(uiPage==MESSAGESCOUNT - 2)
+     //   msg[0] = '-';
+     lcd.print(msg);
+     //Serial.println(msg);
+     
+      
+  }
+}
+
+void uiInfo() {/*
   char msg[MESSAGELENGTH + 1];
   lcd.backlight();
   lcd.clear();
@@ -890,11 +973,13 @@ void uiInfo() {
 
   readMessage(1, msg);
   lcd.print(msg);
-/*  
+*/  
 //          "123456789ABCDEF"
+  lcd.clear();
+  lcd.setCursor(0, 0);
   lcd.print("BCSEDLON@");
   lcd.setCursor(0, 1);
-  lcd.print("GMAIL.COM");*/
+  lcd.print("GMAIL.COM");
   Menu.enable(false);
   /*while( Menu.checkInput() != BUTTON_SELECT ) {
     ; // wait!
@@ -919,7 +1004,7 @@ void uiClear() {
     secToggle ? lcd.print("+") : lcd.print(" ");
   else if(tempLowAlarm & 1)
     secToggle ? lcd.print("-") : lcd.print(" ");
-  if(!((tempHighAlarm || tempLowAlarm) & 1))
+  else //if(!((tempHighAlarm || tempLowAlarm) & 1))
     lcd.print(" ");
     
   lcd.print("t");
@@ -944,17 +1029,17 @@ void uiClear() {
     lcd.print("0");
   lcd.print(now.minute(), DEC);
     
+
+
   lcd.setCursor(0, 1);
   if(lightHighAlarm & 1)
     secToggle ? lcd.print("+") : lcd.print(" ");
   else if(lightLowAlarm & 1)
     secToggle ? lcd.print("-") : lcd.print(" ");
-  else {
-    if(light < lightValueAlarm)
-      lcd.print("*");
-    else
-      lcd.print(" ");
-  }
+  else if(light < lightValueAlarm)
+    lcd.print("*");
+  else
+    lcd.print(" ");
     
   lcd.print("L");
   uiInstrument(lightControl, lightMode);
