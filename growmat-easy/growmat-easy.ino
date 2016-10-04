@@ -46,7 +46,7 @@ const byte KPD_COLS = 4;
 
 #define MESSAGESOFFSET_ADDR 100
 #define MESSAGES_ADDR 104
-#define MESSAGESCOUNT 64
+#define MESSAGESCOUNT 32
 #define MESSAGELENGTH 16
 
 //                              "0123456789ABCDEF"
@@ -555,9 +555,9 @@ void saveEEPROM() {
 
     cyclerMode = 0;
     cyclerOnMin= 0;
-    cyclerOnSec = 30;
+    cyclerOnSec = 5;
     cyclerOffMin= 0;
-    cyclerOffSec = 30;  
+    cyclerOffSec = 5;  
     write(CYCLERMODE_ADDR, cyclerMode);
     write(CYCLERONMIN_ADDR, cyclerOnMin);
     write(CYCLERONSEC_ADDR, cyclerOnSec);
