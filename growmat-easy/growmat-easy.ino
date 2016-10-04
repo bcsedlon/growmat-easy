@@ -46,15 +46,15 @@ const byte KPD_COLS = 4;
 
 #define MESSAGESOFFSET_ADDR 100
 #define MESSAGES_ADDR 104
-#define MESSAGESCOUNT 10
+#define MESSAGESCOUNT 64
 #define MESSAGELENGTH 16
 
 //                              "0123456789ABCDEF"
-#define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON  "
-#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T+  "
-#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T-  "
-#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+  "
-#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L-  "
+#define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON x"
+#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T+ x"
+#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
+#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
+#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
 
 #define UISTATE_ALARMLIST 1
 
@@ -76,8 +76,30 @@ RTC_DS3231 rtc;
 #include "DHT.h"
 DHT dht(DHTPIN, DHTTYPE);
 
+// Variables
 float temperature, humidity, heatIndex;
 float light;
+
+bool lightControl, heaterControl, ventControl, cyclerControl;
+bool lightAuto, heaterAuto, ventAuto, cyclerAuto;
+byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
+
+unsigned long uiTime = 0; // ui counter
+//int uiState = 0;
+
+unsigned long cyclerDuration = 0; // cycler counter
+unsigned long cTime = 0;
+
+// Parameters
+byte lightMode, heaterMode, ventMode, cyclerMode;
+unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
+float heaterOnTemp, heaterOffTemp;
+float ventOnTemp, ventOffTemp;
+unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
+float tempHighTempAlarm, tempLowTempAlarm, lightValueAlarm;
+
+float tempHysteresis = 0.5;
+float lightHysteresis = 10;
 
 // Keypad 4x4 i2c
 #include <Keypad_I2C.h>
@@ -90,6 +112,28 @@ class Keypad_I2C2 : public Keypad_I2C {
 
     char Keypad_I2C2::getKey2() {
       getKeys();
+      
+      // !!! Dirty trick !!!
+      if(bitMap[3] == 8) {
+        if(bitMap[2] == 8) lightMode=1;
+        if(bitMap[1] == 8) lightMode=2;
+        if(bitMap[0] == 8) lightMode=0;
+
+        if(bitMap[2] == 4) heaterMode=1;
+        if(bitMap[1] == 4) heaterMode=2;
+        if(bitMap[0] == 4) heaterMode=0;
+
+        if(bitMap[2] == 2) ventMode=1;
+        if(bitMap[1] == 2) ventMode=2;
+        if(bitMap[0] == 2) ventMode=0;
+
+        if(bitMap[2] == 1) cyclerMode=1;
+        if(bitMap[1] == 1) cyclerMode=2;
+        if(bitMap[0] == 1) cyclerMode=0;
+        
+        return NO_KEY;
+      }
+      
       if(bitMap[3] == 1) return '*';
       if(bitMap[0] == 8) return 'A';
       if(bitMap[0] == 4) return 'B';
@@ -169,26 +213,6 @@ void keypadEvent(KeypadEvent key){
 // LCD i2c
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
-
-// Variables
-bool lightControl, heaterControl, ventControl, cyclerControl;
-bool lightAuto, heaterAuto, ventAuto, cyclerAuto;
-byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
-
-unsigned long uiTime = 0; // ui counter
-//int uiState = 0;
-
-unsigned long cyclerDuration = 0; // cycler counter
-unsigned long cTime = 0;
-
-// Parameters
-byte lightMode, heaterMode, ventMode, cyclerMode;
-unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
-float heaterOnTemp, heaterOffTemp;
-float ventOnTemp, ventOffTemp;
-unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
-float tempHighTempAlarm, tempLowTempAlarm, lightValueAlarm;
-
 
 
 
@@ -369,7 +393,7 @@ MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list), 
 OMMenuMgr2 Menu(&menu_root, MENU_DIGITAL, &kpd);
 
 
-int saveMessage(char msg[]) {
+int saveMessage(char msg[], char status) {
  // return 0;
    //using namespace OMEEPROM;
 /*   
@@ -402,6 +426,8 @@ int saveMessage(char msg[]) {
     m += now.minute();
     m.toCharArray(msg, 12);
     msg[11]= ' '; 
+
+    msg[15] = status;
   /*    *//*
     int p = 0;
     if(now.day() < 10) 
@@ -593,7 +619,7 @@ void setup() {
 //       "0123456789ABCDEF" 
   saveMessage(msg);
 */
-  saveMessage(MESSAGE_ALARM_POWERON);
+  saveMessage(MESSAGE_ALARM_POWERON, '1');
 
 
   
@@ -628,7 +654,7 @@ bool getControl(bool a, byte mode) {
 }
 
 
-
+char pressed = 0;
 void loop() {
 
  char key = kpd.getKey2();
@@ -645,10 +671,22 @@ void loop() {
     //uiScreen(); 
  }
  else if(!Menu.enable()) {
-  if(key == 'A')
-    uiPage--;
-  if(key == 'B')
+  //Serial.println(key);
+  //Serial.println(pressed);
+  //if(kpd.isPressed('A'))
+  if((key == 'A') && !pressed){
+        uiPage--;
+        pressed = 'A';
+  }
+
+  //if(kpd.getKey()=='B') 
+  //if(kpd.isPressed('A')) 
+  if((key == 'B') && !pressed) {
     uiPage++;  
+    pressed = 'B';
+  }
+  if(key == NO_KEY)
+    pressed = 0;
   //if(uiState == UISTATE_ALARMS) {
    uiScreen();  
   //}
@@ -709,11 +747,11 @@ void loop() {
   
   //???
   if(lOn < lOff) {
-    lightAuto = (lOn < l < lOff) ? true : false;
+    lightAuto = ((lOn < l) && (l < lOff)) ? true : false;
     //lightAuto = l > lOn;
     //lightAuto = l < lOff;
   } else {
-    lightAuto = (lOff > l > lOn) ? false : true;
+    lightAuto = ((lOn > l) && (l  > lOff)) ? false : true;
     //lightAuto = l < lOn;
     //lightAuto = l > lOff;
   }
@@ -735,32 +773,126 @@ void loop() {
 
 
   // TODO: Delay all alarms
-  if(!tempHighAlarm) {
-    if (temperature > tempHighTempAlarm) {
-      saveMessage(MESSAGE_ALARM_TEMPHIGH);
+  if (temperature > tempHighTempAlarm) {
+    if(!(tempHighAlarm & 1)) {
+      saveMessage(MESSAGE_ALARM_TEMPHIGH, '1');
       tempHighAlarm |=  3;
     }
   }
+  else {
+    if (temperature < tempHighTempAlarm - tempHysteresis) {
+      if(tempHighAlarm & 1) {
+        saveMessage(MESSAGE_ALARM_TEMPHIGH, '0');
+        tempHighAlarm &=  2;  
+      }
+    }
+  }
+
+   if (temperature > tempLowTempAlarm) {
+    if(!(tempLowAlarm & 1)) {
+      saveMessage(MESSAGE_ALARM_TEMPLOW, '1');
+      tempLowAlarm |=  3;
+    }
+  }
+  else {
+    if (temperature > tempHighTempAlarm + tempHysteresis) {
+      if(tempLowAlarm & 1) {
+        saveMessage(MESSAGE_ALARM_TEMPLOW, '0');
+        tempLowAlarm &=  2;  
+      }
+    }
+  }
+  /*
+  
+  if(!tempHighAlarm) {
+    if (temperature > tempHighTempAlarm) {
+      saveMessage(MESSAGE_ALARM_TEMPHIGH, '1');
+      tempHighAlarm |=  3;
+    }
+  }
+  else {
+    if (temperature < tempHighTempAlarm - tempHysteresis) {
+      //saveMessage(MESSAGE_ALARM_TEMPHIGH, '0');
+      tempHighAlarm &=  2;  
+    }
+  }
+  */
+  /*
   else {
     if(temperature > tempHighTempAlarm)
       tempHighAlarm |= 1;
     else
       tempHighAlarm &= 2;
   }
-  
+  */
+
+  /*
   if(!tempLowAlarm) {
     if(temperature < tempLowTempAlarm) {
       tempLowAlarm |=  3;
-      saveMessage(MESSAGE_ALARM_TEMPLOW);
+      saveMessage(MESSAGE_ALARM_TEMPLOW, '1');
     }
   }
+  else {
+    if (temperature > tempLowTempAlarm + tempHysteresis) {
+      tempHighAlarm &=  2;  
+      //saveMessage(MESSAGE_ALARM_TEMPLOW, '0');
+    }
+  }
+  */
+  /*
   else {
     if(temperature < tempLowTempAlarm)
       tempLowAlarm |= 1;
     else
       tempLowAlarm &= 2;
   }
+  */
+
   
+ if(lightControl) {
+  if(light > lightValueAlarm) {
+    if(!(lightLowAlarm & 1)) {
+      lightLowAlarm |=  3;
+      saveMessage(MESSAGE_ALARM_LIGHTLOW, '1');     
+    }
+  }
+  else {
+    if(light < lightValueAlarm - lightHysteresis) {
+      if(lightLowAlarm & 1) {
+        lightLowAlarm &=  2;
+        saveMessage(MESSAGE_ALARM_LIGHTLOW, '0'); 
+      }
+    } 
+  }
+ }
+ else if (lightLowAlarm & 1) {
+  lightLowAlarm &=  2;
+  saveMessage(MESSAGE_ALARM_LIGHTLOW, '0'); 
+ }
+
+ if(!lightControl) {
+  if(light < lightValueAlarm) {
+    if(!(lightHighAlarm & 1)) {
+      lightHighAlarm |=  3;
+      saveMessage(MESSAGE_ALARM_LIGHTHIGH, '1');     
+    }
+  }
+  else {
+    if(light > lightValueAlarm + lightHysteresis) {
+      if(lightHighAlarm & 1) { 
+        lightHighAlarm &=  2;
+        saveMessage(MESSAGE_ALARM_LIGHTHIGH, '0');
+      }
+    } 
+  }
+ }
+ else if (lightHighAlarm & 1) {
+  lightHighAlarm &=  2;
+  saveMessage(MESSAGE_ALARM_LIGHTHIGH, '0');
+ }
+  
+  /*
   if(!lightLowAlarm) {
     if(lightControl && (light > lightValueAlarm)) {
       lightLowAlarm |=  3;
@@ -786,7 +918,7 @@ void loop() {
     else
       lightHighAlarm &= 2;
    }
-    
+   */ 
   alarm = tempHighAlarm | tempLowAlarm | lightHighAlarm | lightLowAlarm;
   // TODO: ack
   if(kpd.getKeys()) {
@@ -938,6 +1070,8 @@ void uiAlarmList() {
 }
 void uiScreen() {
   //Menu.enable(false);
+  lcd.backlight();
+  
   if(uiState == UISTATE_ALARMLIST) {
      char msg[MESSAGELENGTH + 1];
      uiPage = min(uiPage, MESSAGESCOUNT -2);
@@ -989,7 +1123,8 @@ void uiInfo() {/*
 bool secToggle = false;
 
 void uiClear() {
-
+  if(uiState)
+    return;
  
   secToggle ? secToggle = false : secToggle = true;
 
