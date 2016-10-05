@@ -55,10 +55,70 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
 #define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
 #define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
+#define MESSAGE_ALARM_ON  '1'
+#define MESSAGE_ALARM_OFF '0'
 
 #define UISTATE_ALARMLIST 1
 
 int uiState, uiPage;
+
+class Alarm {
+  bool active;
+  bool unAck;
+  unsigned long timeActive;
+  unsigned long timeDeactive;
+
+ public:
+  // TODO: fix when millis overrun!!! 
+  int delay = 5000;
+  bool activate(bool state) {
+    if(state) {
+      if(!active) {
+        if(!timeActive) {
+          timeActive = millis();
+        }
+        if((timeActive + delay) < millis()) {
+          active = true;
+          unAck = true; 
+          timeActive = 0;
+          return true;
+        } 
+      }
+    }
+    else {
+      timeActive = 0;
+    }
+    return false;
+  };
+  bool deactivate(bool state) {
+    if(state){
+      if(active) {
+         if(!timeDeactive)
+          timeDeactive = millis();
+        if((timeDeactive + delay) < millis()) {
+          active = false; 
+          timeDeactive = 0;
+          return true; 
+        }
+      }
+    }
+    else
+      timeDeactive = 0;
+    return false;
+  }
+  void ack() {
+   unAck = false; 
+  }
+  bool isUnAck(){
+    return unAck;
+  }
+  bool isActive(){
+    return active;
+  }
+};
+
+Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2;
+
 
 #include <Wire.h>
 
@@ -82,7 +142,7 @@ float light;
 
 bool lightControl, heaterControl, ventControl, cyclerControl;
 bool lightAuto, heaterAuto, ventAuto, cyclerAuto;
-byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
+//byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
 
 unsigned long uiTime = 0; // ui counter
 //int uiState = 0;
@@ -106,12 +166,15 @@ float lightHysteresis = 10;
 #include <Keypad.h>
 
 class Keypad_I2C2 : public Keypad_I2C {
+  unsigned long kTime;
   public:
     Keypad_I2C2(char *userKeymap, byte *row, byte *col, byte numRows, byte numCols, byte address, byte width = 1) : Keypad_I2C(userKeymap, row, col, numRows, numCols, address, width) {
     };
 
     char Keypad_I2C2::getKey2() {
       getKeys();
+      
+     
       
       // !!! Dirty trick !!!
       if(bitMap[3] == 8) {
@@ -133,6 +196,27 @@ class Keypad_I2C2 : public Keypad_I2C {
         
         return NO_KEY;
       }
+
+Serial.println(kTime);
+      if(bitMap[0] || bitMap[1] || bitMap[2] || bitMap[3]) {
+        if(!kTime) {
+          kTime = millis();
+        }
+        if((kTime + 500) > millis()){
+          if((kTime + 250) < millis()) {
+            Serial.println("PAUSE");
+            return NO_KEY;
+            
+        }
+       }
+        /*
+        if(((kTime + 125) > millis()) && ((kTime + 500) < millis())){
+          return NO_KEY;
+        } 
+        */
+      }
+      else
+        kTime = 0;
       
       if(bitMap[3] == 1) return '*';
       if(bitMap[0] == 8) return 'A';
@@ -223,7 +307,7 @@ LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 // Menu
 #include "OMMenuMgr.h"
 
-static unsigned long kTime;
+//static unsigned long kTime;
 static char k;
 class OMMenuMgr2 : public OMMenuMgr {
   public:
@@ -394,7 +478,7 @@ OMMenuMgr2 Menu(&menu_root, MENU_DIGITAL, &kpd);
 
 
 int saveMessage(char msg[], char status) {
- // return 0;
+//return 0;
    //using namespace OMEEPROM;
 /*   
     for(int i=0; i < MESSAGELENGTH; i++) {
@@ -474,7 +558,7 @@ int saveMessage(char msg[], char status) {
 }
 
 void readMessage(int index, byte* msg) {
- // return;
+ //return;
 //    using namespace OMEEPROM;
 /*
     for(int i=0; i < MESSAGELENGTH; i++) {
@@ -619,7 +703,7 @@ void setup() {
 //       "0123456789ABCDEF" 
   saveMessage(msg);
 */
-  saveMessage(MESSAGE_ALARM_POWERON, '1');
+  saveMessage(MESSAGE_ALARM_POWERON, MESSAGE_ALARM_ON);
 
 
   
@@ -673,13 +757,14 @@ void loop() {
  else if(!Menu.enable()) {
   //Serial.println(key);
   //Serial.println(pressed);
-  //if(kpd.isPressed('A'))
+
+   // if(kpd.getKey2()=='A')  {
   if((key == 'A') && !pressed){
         uiPage--;
         pressed = 'A';
   }
 
-  //if(kpd.getKey()=='B') 
+  //if(kpd.getKey2()=='B')  {
   //if(kpd.isPressed('A')) 
   if((key == 'B') && !pressed) {
     uiPage++;  
@@ -772,7 +857,33 @@ void loop() {
   
 
 
-  // TODO: Delay all alarms
+
+  if(tempHighAlarm2.activate(temperature > tempHighTempAlarm))
+    saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_ON);;
+  if(tempHighAlarm2.deactivate(temperature < (tempHighTempAlarm - tempHysteresis)))
+    saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_OFF);
+
+  if(tempLowAlarm2.activate(temperature < tempLowTempAlarm))
+    saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_ON);;
+  if(tempLowAlarm2.deactivate(temperature > (tempLowTempAlarm + tempHysteresis)))
+    saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_OFF);  
+
+  if(lightLowAlarm2.activate(lightControl && (light > lightValueAlarm)))
+    saveMessage(MESSAGE_ALARM_LIGHTLOW, MESSAGE_ALARM_ON);
+  if(lightLowAlarm2.deactivate(!lightControl || (light < lightValueAlarm - lightHysteresis)))
+    saveMessage(MESSAGE_ALARM_LIGHTLOW, MESSAGE_ALARM_OFF);  
+
+  if(lightHighAlarm2.activate(!lightControl && (light < lightValueAlarm)))
+    saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_ON);
+  if(lightHighAlarm2.deactivate(lightControl || (light > lightValueAlarm + lightHysteresis)))
+    saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
+  //Serial.println(lightHighAlarm2.isActive());
+  //Serial.println(lightHighAlarm2.timeActive);
+  //Serial.println(lightHighAlarm2.timeDeactive);
+ 
+/*
+  //-----------------------------
+  
   if (temperature > tempHighTempAlarm) {
     if(!(tempHighAlarm & 1)) {
       saveMessage(MESSAGE_ALARM_TEMPHIGH, '1');
@@ -780,7 +891,7 @@ void loop() {
     }
   }
   else {
-    if (temperature < tempHighTempAlarm - tempHysteresis) {
+    if (temperature < (tempHighTempAlarm - tempHysteresis)) {
       if(tempHighAlarm & 1) {
         saveMessage(MESSAGE_ALARM_TEMPHIGH, '0');
         tempHighAlarm &=  2;  
@@ -795,59 +906,13 @@ void loop() {
     }
   }
   else {
-    if (temperature > tempHighTempAlarm + tempHysteresis) {
+    if (temperature < tempHighTempAlarm + tempHysteresis) {
       if(tempLowAlarm & 1) {
         saveMessage(MESSAGE_ALARM_TEMPLOW, '0');
         tempLowAlarm &=  2;  
       }
     }
   }
-  /*
-  
-  if(!tempHighAlarm) {
-    if (temperature > tempHighTempAlarm) {
-      saveMessage(MESSAGE_ALARM_TEMPHIGH, '1');
-      tempHighAlarm |=  3;
-    }
-  }
-  else {
-    if (temperature < tempHighTempAlarm - tempHysteresis) {
-      //saveMessage(MESSAGE_ALARM_TEMPHIGH, '0');
-      tempHighAlarm &=  2;  
-    }
-  }
-  */
-  /*
-  else {
-    if(temperature > tempHighTempAlarm)
-      tempHighAlarm |= 1;
-    else
-      tempHighAlarm &= 2;
-  }
-  */
-
-  /*
-  if(!tempLowAlarm) {
-    if(temperature < tempLowTempAlarm) {
-      tempLowAlarm |=  3;
-      saveMessage(MESSAGE_ALARM_TEMPLOW, '1');
-    }
-  }
-  else {
-    if (temperature > tempLowTempAlarm + tempHysteresis) {
-      tempHighAlarm &=  2;  
-      //saveMessage(MESSAGE_ALARM_TEMPLOW, '0');
-    }
-  }
-  */
-  /*
-  else {
-    if(temperature < tempLowTempAlarm)
-      tempLowAlarm |= 1;
-    else
-      tempLowAlarm &= 2;
-  }
-  */
 
   
  if(lightControl) {
@@ -891,41 +956,25 @@ void loop() {
   lightHighAlarm &=  2;
   saveMessage(MESSAGE_ALARM_LIGHTHIGH, '0');
  }
-  
-  /*
-  if(!lightLowAlarm) {
-    if(lightControl && (light > lightValueAlarm)) {
-      lightLowAlarm |=  3;
-      saveMessage(MESSAGE_ALARM_LIGHTLOW);     
-    }
-  }
-  else {
-    if(lightControl && (light > lightValueAlarm))
-      lightLowAlarm |= 1;
-    else
-      lightLowAlarm &= 2;
-   }
+*/
 
-  if(!lightHighAlarm) {
-    if((!lightControl) && (light < lightValueAlarm)) {
-      lightHighAlarm |=  3;
-      saveMessage(MESSAGE_ALARM_LIGHTHIGH);
-    }
-  }
-  else {
-    if((!lightHighAlarm) && (light < lightValueAlarm))
-      lightHighAlarm |= 1;
-    else
-      lightHighAlarm &= 2;
-   }
-   */ 
-  alarm = tempHighAlarm | tempLowAlarm | lightHighAlarm | lightLowAlarm;
+
+
+
+
+  //alarm = tempHighAlarm | tempLowAlarm | lightHighAlarm | lightLowAlarm;
   // TODO: ack
   if(kpd.getKeys()) {
+    /*
     tempHighAlarm &= 1;
     tempLowAlarm &= 1;
     lightHighAlarm &= 1;
     lightLowAlarm &= 1;
+*/
+    tempHighAlarm2.ack();
+    tempLowAlarm2.ack();
+    lightHighAlarm2.ack();
+    lightLowAlarm2.ack();
     //Serial.print(alarm);
   }
   //Serial.print(alarm);
@@ -942,6 +991,8 @@ void loop() {
     // read the incoming byte:
     //incomingByte = Serial.read();
     if (Serial.readString().indexOf("?")!=-1 ) {
+
+      
       Serial.print("T=");
       Serial.println(temperature);
       Serial.print("H=");
@@ -954,7 +1005,11 @@ void loop() {
         readMessage(i, msg);
         Serial.println(msg);
       }
+  
+
+
     }
+  
   }
 
  //------------------------------------------- 
@@ -1128,16 +1183,16 @@ void uiClear() {
  
   secToggle ? secToggle = false : secToggle = true;
 
-  if(alarm > 1) {
+  if(tempHighAlarm2.isUnAck() || tempLowAlarm2.isUnAck() || lightHighAlarm2.isUnAck() || lightLowAlarm2.isUnAck()) {
     secToggle ? lcd.backlight() : lcd.noBacklight();
   }  else {
     lcd.backlight();
   }
 
   lcd.setCursor(0, 0);
-  if(tempHighAlarm & 1)
+  if(tempHighAlarm2.isActive())
     secToggle ? lcd.print("+") : lcd.print(" ");
-  else if(tempLowAlarm & 1)
+  else if(tempLowAlarm2.isActive())
     secToggle ? lcd.print("-") : lcd.print(" ");
   else //if(!((tempHighAlarm || tempLowAlarm) & 1))
     lcd.print(" ");
@@ -1167,9 +1222,9 @@ void uiClear() {
 
 
   lcd.setCursor(0, 1);
-  if(lightHighAlarm & 1)
+  if(lightHighAlarm2.isActive())
     secToggle ? lcd.print("+") : lcd.print(" ");
-  else if(lightLowAlarm & 1)
+  else if(lightLowAlarm2.isActive())
     secToggle ? lcd.print("-") : lcd.print(" ");
   else if(light < lightValueAlarm)
     lcd.print("*");
