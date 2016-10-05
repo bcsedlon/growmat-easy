@@ -197,14 +197,14 @@ class Keypad_I2C2 : public Keypad_I2C {
         return NO_KEY;
       }
 
-Serial.println(kTime);
+      //Serial.println(kTime);
       if(bitMap[0] || bitMap[1] || bitMap[2] || bitMap[3]) {
         if(!kTime) {
           kTime = millis();
         }
         if((kTime + 500) > millis()){
           if((kTime + 250) < millis()) {
-            Serial.println("PAUSE");
+            //Serial.println("PAUSE");
             return NO_KEY;
             
         }
