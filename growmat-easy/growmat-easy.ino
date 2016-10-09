@@ -1,3 +1,5 @@
+//20161009 last version developed in Arduino 1.6.12
+
 
 #define VERSION 0.1
 
