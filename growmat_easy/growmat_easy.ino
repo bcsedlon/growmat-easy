@@ -62,7 +62,7 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_OFF '0'
 
 #define UISTATE_ALARMLIST 1
-
+#define UISTATE_SETCLOCK 2
 
 int uiState, uiPage;
 
@@ -175,7 +175,7 @@ public:
 		//callStatus = sim->getCallStatus();
 		// TODO: solve millis overflow
 		if(callDuration && (callDuration + 30000 < millis())){
-			Serial.println("HANG OFF");
+			Serial.println("HANG UP");
 			sim->hangoffCall();
 			callDuration = 0;
 		}
@@ -188,7 +188,7 @@ public:
 
 
 
-	bool proceedSMS(byte  *lightMode) {
+	bool proceedSMS(byte  *lightMode, byte *heaterMode,byte *ventMode,byte *cyclerMode) {
 
 		if(callDuration)
 			return false;
@@ -205,16 +205,20 @@ public:
 
 
 		String text = sim->readSms(21);
+		sim->delAllSms();
 		//String text = sim->response1;
 
+		//Serial.print("SMS: ");
 		//Serial.println(text);
 
 		//Serial.println( text.indexOf("\n"));
+
+/*
 		for(int i = 0; i < 2; i++)
 			text = text.substring(text.indexOf("\n")+1);
 		text = text.substring(0, text.indexOf("\n")-1);
-		//Serial.println(text);
-
+		Serial.println(text);
+*/
 
 		//return false;
 		//String text;
@@ -228,10 +232,12 @@ public:
 		Serial.println(text);*/
 		int pos;
 		char ch;
+		Serial.println(text);
 		if(text != "") {
-			if(text.substring(0, 4) == String(*gsmCode, DEC)) {
+			pos = text.indexOf("#CODE");
+			if(text.substring(pos+5, pos+9) == String(*gsmCode, DEC)) {
 				Serial.println("PASSWORD OK");
-				pos = text.indexOf("@00");
+				pos = text.indexOf("#00");
 				if(pos > -1) {
 					text.substring(pos+1).toCharArray(gsmNumber, 16, 0);
 					//OMEEPROM::write(GSMNUMBER_ADDR, text, text.length);
@@ -242,9 +248,19 @@ public:
 					  }
 				}
 
-				pos = text.indexOf("@L");
+				pos = text.indexOf("#?");
 				if(pos > -1) {
-					Serial.println("LIGHT");
+					char* msg = "GROWMAT INFO";
+					bool r = sim->sendSms(gsmNumber, msg);
+
+					Serial.print("SMS INFO: ");
+					//delay(250);
+					//Serial.println(r);
+				}
+
+				pos = text.indexOf("#L");
+				if(pos > -1) {
+					//Serial.println("LIGHT");
 					ch = text.charAt(pos+2);
 					if(ch=='A')
 						*lightMode = 0;
@@ -256,6 +272,36 @@ public:
 						*lightMode = 2;
 						//lightControl = 1;
 					}
+				}
+				pos = text.indexOf("#H");
+				if(pos > -1) {
+					ch = text.charAt(pos+2);
+					if(ch=='A')
+						*heaterMode = 0;
+					else if(ch=='0')
+						*heaterMode = 1;
+					else if(ch=='1')
+						*heaterMode = 2;
+				}
+				pos = text.indexOf("#V");
+				if(pos > -1) {
+					ch = text.charAt(pos+2);
+					if(ch=='A')
+						*ventMode = 0;
+					else if(ch=='0')
+						*ventMode = 1;
+					else if(ch=='1')
+						*ventMode = 2;
+				}
+				pos = text.indexOf("#C");
+				if(pos > -1) {
+					ch = text.charAt(pos+2);
+					if(ch=='A')
+						*cyclerMode = 0;
+					else if(ch=='0')
+						*cyclerMode = 1;
+					else if(ch=='1')
+						*cyclerMode = 2;
 				}
 			}
 			sim->delAllSms();
@@ -315,7 +361,7 @@ class Keypad_I2C2 : public Keypad_I2C {
 
 
       // !!! Dirty trick !!!
-      if(bitMap[3] == 8) {
+      if(bitMap[3] == 4) {
         if(bitMap[2] == 8) lightMode=1;
         if(bitMap[1] == 8) lightMode=2;
         if(bitMap[0] == 8) lightMode=0;
@@ -360,6 +406,12 @@ class Keypad_I2C2 : public Keypad_I2C {
       if(bitMap[0] == 8) return 'A';
       if(bitMap[0] == 4) return 'B';
       if(bitMap[0] == 1) return 'D';
+
+      if(bitMap[3] == 8) return '1';
+
+      if(bitMap[2] == 8) return '2';
+
+      if(bitMap[1] == 8) return '3';
       if(bitMap[1] == 1) return '#';
 
       if(bitMap[2] == 1) return '0';
@@ -606,15 +658,16 @@ MENU_ITEM item_state    = { {"Select Input"}, ITEM_VALUE,  0,        MENU_TARGET
  */
 
 MENU_VALUE gsmCode_value= { TYPE_UINT, 9999, 1000,    MENU_TARGET(&gsmCode), GSMCODE_ADDR };
-MENU_ITEM gsmCode_item   ={ {"GSM PASSWORD"},    ITEM_VALUE,  0,        MENU_TARGET(&gsmCode_value) };
+MENU_ITEM gsmCode_item   ={ {"GSM CODE->"},    ITEM_VALUE,  0,        MENU_TARGET(&gsmCode_value) };
 
 MENU_ITEM item_testme   = { {"CALL!"},  ITEM_ACTION, 0,        MENU_TARGET(&callAction) };
-MENU_ITEM item_info   = { {"INFO"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
+MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetClock) };
+MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
 MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
 
                    //        List of items in menu level
 //MENU_LIST const root_list[]   = { &item_checkme, &item_barme,  &item_state, &item_testme, &menu_submenu1, &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5 };//&item_bazme, &item_bakme,
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5,&item_alarmList, &item_testme, &gsmCode_item, &item_info };//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5,&item_alarmList, &item_testme, &gsmCode_item, &item_setClock, &item_info };//&item_bazme, &item_bakme,
 
                   // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -892,7 +945,7 @@ bool getControl(bool a, byte mode) {
   return false;
 }
 
-
+DateTime nowSetClock;
 char pressed = 0;
 unsigned long gsmTime = 0;
 void loop() {
@@ -938,6 +991,8 @@ void loop() {
     cyclerDuration++;
     //Serial.println(cyclerDuration);
     //Serial.println(cyclerAuto);
+
+    nowSetClock = rtc.now();
  }
 
  gsmMgr.update();
@@ -946,7 +1001,7 @@ void loop() {
 	gsmTime = millis();
 
 
-    gsmMgr.proceedSMS(&lightMode);
+    gsmMgr.proceedSMS(&lightMode, &heaterMode, &ventMode, &cyclerMode);
  }
 
 
@@ -1299,6 +1354,13 @@ void uiAlarmList() {
   Menu.enable(false);
   uiState = UISTATE_ALARMLIST;
 }
+
+void uiSetClock() {
+  Menu.enable(false);
+  uiState = UISTATE_SETCLOCK;
+}
+
+
 void uiScreen() {
   //Menu.enable(false);
   lcd.backlight();
@@ -1325,6 +1387,42 @@ void uiScreen() {
 
 
   }
+  if(uiState == UISTATE_SETCLOCK) {
+	  //DateTime now = rtc.now();
+	  lcd.setCursor(0,0);
+	  lcd.print("SET CLOCK  ");
+	  if(nowSetClock.hour()<10)
+		  lcd.print('0');
+	  lcd.print(nowSetClock.hour());
+	  lcd.print(':');
+	  if(nowSetClock.minute()<10)
+		  lcd.print('0');
+	  lcd.print(nowSetClock.minute());
+	  lcd.setCursor(0,1);
+	  lcd.print("1- H 2+  3- M A+");
+
+	  uint8_t h = nowSetClock.hour();
+	  uint8_t m = nowSetClock.minute();
+
+	  char key = kpd.getKey2();
+	  if(key == '1')
+		h--;
+	  if(key == '2')
+	  	h++;
+	  if(key == '3')
+		m--;
+	  if(key == 'A')
+	  	m++;
+
+	  m = min(59, m);
+	  m = max(0, m);
+	  h = min(23, h);
+	  h = max(0, h);
+	  //now.hour()
+	  rtc.adjust(DateTime(nowSetClock.year(), nowSetClock.month(), nowSetClock.day(), h, m, nowSetClock.second()));
+
+  }
+
 }
 
 void uiInfo() {/*

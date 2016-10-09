@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2016-10-08 22:18:54
+//This file has been generated on 2016-10-09 23:47:05
 
 #include "Arduino.h"
 #include <Wire.h>
@@ -26,6 +26,7 @@ void callAction() ;
 void uiDraw(char* p_text, int p_row, int p_col, int len) ;
 void uiInstrument(bool instrument, byte mode) ;
 void uiAlarmList() ;
+void uiSetClock() ;
 void uiScreen() ;
 void uiInfo() ;
 void uiClear() ;
