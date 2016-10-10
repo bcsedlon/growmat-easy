@@ -49,14 +49,16 @@ class Sim800l
   private:
 	int _timeout;
 	String _buffer;
-		String _readSerial();
+	String _readSerial();
   	
   	
   public:
-
+	/*
 	String response1;
-	bool readSerial();
+	String readSerial();
 	void writeSerial(String s);
+	SoftwareSerial* Sim800l::getSerial();
+	*/
 
  	void begin();	
  	void reset(); 

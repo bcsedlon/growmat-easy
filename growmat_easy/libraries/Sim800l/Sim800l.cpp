@@ -44,21 +44,20 @@ void Sim800l::begin(){
   _buffer.reserve(255); //reserve memory to prevent intern fragmention
 }
 
-
-bool Sim800l::readSerial(){
-  if (SIM.available()) {
-	  response1 = String(SIM.readString() + "--END");
-	  Serial.println("SIM");
-	  Serial.println(response1);
-	  return true;
-	  //return SIM.readString();
-  }
-  return false;
-  //return String("X");
+/*
+SoftwareSerial* Sim800l::getSerial() {
+	return &SIM;
 }
+
+
+String Sim800l::readSerial(){
+	return readSerial();
+}
+
 void Sim800l::writeSerial(String s){
   SIM.print(s);
 }
+*/
 
 //
 //PRIVATE METHODS

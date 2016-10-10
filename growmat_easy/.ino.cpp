@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2016-10-09 23:47:05
+//This file has been generated on 2016-10-11 00:55:00
 
 #include "Arduino.h"
 #include <Wire.h>
@@ -20,7 +20,7 @@ void readMessage(int index, byte* msg) ;
 void loadEEPROM() ;
 void saveEEPROM() ;
 void setup() ;
-bool getControl(bool a, byte mode) ;
+bool getInstrumentControl(bool a, byte mode) ;
 void loop() ;
 void callAction() ;
 void uiDraw(char* p_text, int p_row, int p_col, int len) ;
@@ -29,8 +29,7 @@ void uiAlarmList() ;
 void uiSetClock() ;
 void uiScreen() ;
 void uiInfo() ;
-void uiClear() ;
-void uiQwkScreen() ;
+void uiMain() ;
 
 #include "growmat_easy.ino"
 
