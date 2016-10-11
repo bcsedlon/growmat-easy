@@ -62,7 +62,8 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
-
+#define GSMCHECKSMSINTERVAL  10000
+#define GSMCALLDURATION  30000
 
 #define UISTATE_ALARMLIST 1
 #define UISTATE_SETCLOCK 2
@@ -226,12 +227,13 @@ public:
 	    _buffer=_readSerial();
 	    return true;
 	}
-/*
-	template <class type> void sendSmsText(type a)
+	/*
+	template <typename TYPE> void sendSmsText(TYPE value)
 	{
-		printSerial(a);
-	}*/
-
+		//Serial.print(value);
+		printSerial(value);
+	}
+	*/
 	void Sim800l2::sendSmsText(char* s) {
 		printSerial(s);
 	}
@@ -303,7 +305,7 @@ public:
 		// TODO: solve millis overflow
 		//if(callDuration && (callDuration + 30000 < millis())){
 		//if(secondsCall && (secondsCall + 30 < secondstime)){
-		if(millisecondsCall && (millisecondsCall + 60000 < milliseconds)){
+		if(millisecondsCall && (millisecondsCall + GSMCALLDURATION < milliseconds)){
 			Serial.println(F("HANG UP"));
 			sim->hangoffCall();
 			//callDuration = 0;
@@ -335,11 +337,11 @@ public:
 				char ch;
 
 
-				Serial.println(text);
+				//Serial.println(text);
 
 				pos = text.indexOf("#CODE");
 				if(text.substring(pos+5, pos+9) == String(*gsmCode, DEC)) {
-					Serial.println("CODE OK");
+					//Serial.println("CODE OK");
 
 					pos = text.indexOf("#00");
 					if(pos > -1) {
@@ -372,11 +374,15 @@ public:
 						//sim->sendSmsEnd();
 
 
-						if(tempHighAlarm2.active) sim->sendSmsText("TEMP+!\n");
-						if(tempLowAlarm2.active) sim->sendSmsText("TEMP-!\n");
-						if(lightHighAlarm2.active) sim->sendSmsText("LIGHT+!\n");
-						if(lightLowAlarm2.active) sim->sendSmsText("LIGHT-!\n");
-						//sim->sendSmsText("\n");
+						if(tempHighAlarm2.active) sim->sendSmsText("!T+\n");
+						if(tempLowAlarm2.active) sim->sendSmsText("!T-\n");
+						if(lightHighAlarm2.active) sim->sendSmsText("!L+\n");
+						if(lightLowAlarm2.active) sim->sendSmsText("!L-\n");
+
+						//sim->sendSmsTextT(10);
+						//sim->sendSmsTextT(0.3);
+						//sim->sendSmsTextT("XD");
+						//sim->sendSmsTextT('!');
 
 						sim->sendSmsText("L");
 						lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
@@ -392,16 +398,16 @@ public:
 						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
 						sim->sendSmsText("\n");
 
-						sim->sendSmsText("TEMP=");
+						sim->sendSmsText("T=");
 						sim->sendSmsText(temperature);
-						sim->sendSmsText("\nHUMI=");
+						sim->sendSmsText("\nH=");
 						sim->sendSmsText(humidity);
-						sim->sendSmsText("\nLIGHT=");
+						sim->sendSmsText("\nL=");
 						sim->sendSmsText(light);
 						sim->sendSmsText("\n");
 
-						sim->sendSmsText("\GSM CODE=");
-						sim->sendSmsText((int)gsmCode);
+						sim->sendSmsText("\GSM MODE=");
+						sim->sendSmsText(gsmMode);
 						/*
 						sim->sendSmsText("\nGSM MODE=");
 						sim->sendSmsText(gsmMode);
@@ -409,14 +415,16 @@ public:
 						sim->sendSmsText(gsmNumber);
 						*/
 
-						/*
+
 						sim->sendSmsText("\n\n");
 						char msg[MESSAGELENGTH + 1];
-						for(int i = 0; i< MESSAGESCOUNT; i++) {
+						//for(int i = 0; i< MESSAGESCOUNT; i++) {
+						for(int i = 0; i< 3; i++) {
 						  	readMessage(i, (byte*)msg);
 						  	sim->sendSmsText(msg);
+						  	sim->sendSmsText("\n");
 						 }
-						 */
+
 
 						sim->sendSmsEnd();
 					}
@@ -967,7 +975,7 @@ void setup() {
 	Serial.print(TEXT_GROWMATEASY);
 	Serial.print(' ');
 	Serial.println(VERSION);
-	Serial.println();
+	//Serial.println(F("##############"));
 
 	if( OMEEPROM::saved() )
 		loadEEPROM();
@@ -1098,13 +1106,16 @@ void loop() {
 		milliseconds = millis();
 		//Serial.println(secondstime);
 		//Serial.println(milliseconds);
+		Serial.print('.');
 
 		// how often check sms, time expensive
 		//if(!(secondstime % 60) && gsmMode > 0) {
-		if((millisecondsGsm + 10000 < milliseconds) && gsmMode > 0) {
-			//Serial.println("SMS CHECK");
-			millisecondsGsm = milliseconds;
-			gsmMgr.proceedSMS();//&lightMode, &heaterMode, &ventMode, &cyclerMode);
+		if((millisecondsGsm + GSMCHECKSMSINTERVAL < milliseconds) && gsmMode > 0) {
+			if(!gsmMgr.millisecondsCall) {
+				//Serial.println("SMS CHECK");
+				millisecondsGsm = milliseconds;
+				gsmMgr.proceedSMS();//&lightMode, &heaterMode, &ventMode, &cyclerMode);
+			}
 		}
 	}
 
@@ -1277,10 +1288,10 @@ void loop() {
   			//infoSerial((Stream*)&Serial);
 
 
-  			if(tempHighAlarm2.active) Serial.println(F("TEMP+!"));
-  			if(tempLowAlarm2.active) Serial.println(F("TEMP-"));
-  			if(lightHighAlarm2.active) Serial.println(F("LIGHT+"));
-  			if(lightLowAlarm2.active) Serial.println(F("LIGHT-"));
+  			if(tempHighAlarm2.active) Serial.println(F("!T+"));
+  			if(tempLowAlarm2.active) Serial.println(F("!T-"));
+  			if(lightHighAlarm2.active) Serial.println(F("!L+"));
+  			if(lightLowAlarm2.active) Serial.println(F("!L-"));
   			Serial.println();
 
   			Serial.print("L");
@@ -1297,11 +1308,11 @@ void loop() {
   			cyclerMode ? Serial.print('M'):Serial.print('A');
   			Serial.println();
 
-  			Serial.print("TEMP=");
+  			Serial.print("T=");
   			Serial.print(temperature);
-  			Serial.print(" HUMI=");
+  			Serial.print("\nH=");
   			Serial.print(humidity);
-  			Serial.print(" LIGHT=");
+  			Serial.print("\nLIGHT=");
   			Serial.print(light);
   			Serial.println();
 

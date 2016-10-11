@@ -41,8 +41,7 @@
 #define LED true // used for indicator led, in case that you don want set to false . 
 #define LED_PIN 13 //pin to indicate states. 
 
-
-
+//SoftwareSerial SIM(RX_PIN,TX_PIN);
 
 class Sim800l		
 {									
@@ -63,8 +62,9 @@ class Sim800l
 	void printSerial(char ch);
 	void printSerial(float f);
 	void printSerial(int i);
-	//template <class type> void p(type a);
-	//SoftwareSerial* getSerial();
+	//export
+	//template <typename TYPE> void printSerial(TYPE value) {};
+
 
  	void begin();	
  	void reset(); 

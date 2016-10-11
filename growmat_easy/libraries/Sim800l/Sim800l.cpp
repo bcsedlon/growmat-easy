@@ -43,23 +43,33 @@ void Sim800l::begin(){
   #endif
   _buffer.reserve(255); //reserve memory to prevent intern fragmention
 }
+
+//export
+//template <typename TYPE> void sendSmsTextT(TYPE value)
+
 /*
-template <class type> void printSerial(type a)
+public: template <typename TYPE> void printSerial(TYPE value)
 {
-	SIM.print(a);
+	Serial.print(value);
+	SIM.print(value);
 }
 */
+
 void Sim800l::printSerial(char* s){
-  SIM.print(s);
+	//Serial.print(s);
+	SIM.print(s);
 }
 void Sim800l::printSerial(char ch){
-  SIM.print(ch);
+	//Serial.print(ch);
+	SIM.print(ch);
 }
 void Sim800l::printSerial(float f){
-  SIM.print(f);
+	//Serial.print(f);
+	SIM.print(f);
 }
 void Sim800l::printSerial(int i){
-  SIM.print(i);
+	//Serial.print(i);
+	SIM.print(i);
 }
 
 /*
@@ -83,10 +93,8 @@ void Sim800l::writeSerial(String s){
 //
 String Sim800l::_readSerial(){
 
-	//TODO TEST !!!
 	if(na)
 		return "";
-
 
 	_timeout=0;
   while  (!SIM.available() && _timeout < 12000  ) 
