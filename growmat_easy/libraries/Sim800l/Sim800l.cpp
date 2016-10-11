@@ -43,17 +43,36 @@ void Sim800l::begin(){
   #endif
   _buffer.reserve(255); //reserve memory to prevent intern fragmention
 }
+/*
+template <class type> void printSerial(type a)
+{
+	SIM.print(a);
+}
+*/
+void Sim800l::printSerial(char* s){
+  SIM.print(s);
+}
+void Sim800l::printSerial(char ch){
+  SIM.print(ch);
+}
+void Sim800l::printSerial(float f){
+  SIM.print(f);
+}
+void Sim800l::printSerial(int i){
+  SIM.print(i);
+}
 
 /*
 SoftwareSerial* Sim800l::getSerial() {
 	return &SIM;
 }
-
+*/
+/*
 
 String Sim800l::readSerial(){
 	return readSerial();
 }
-
+*
 void Sim800l::writeSerial(String s){
   SIM.print(s);
 }
@@ -63,19 +82,25 @@ void Sim800l::writeSerial(String s){
 //PRIVATE METHODS
 //
 String Sim800l::_readSerial(){
-  _timeout=0;
+
+	//TODO TEST !!!
+	if(na)
+		return "";
+
+
+	_timeout=0;
   while  (!SIM.available() && _timeout < 12000  ) 
   {
     delay(13);
     _timeout++;
-
-
   }
+
+  if(_timeout > 10000)
+	na = true;
+
   if (SIM.available()) {
  	return SIM.readString();
   }
-  
-
 }
 
 

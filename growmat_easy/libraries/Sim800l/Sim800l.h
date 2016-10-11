@@ -46,19 +46,25 @@
 
 class Sim800l		
 {									
-  private:
+  protected:
 	int _timeout;
 	String _buffer;
 	String _readSerial();
-  	
+	//SoftwareSerial SIM(RX_PIN,TX_PIN);
+	bool na = false;
   	
   public:
 	/*
 	String response1;
 	String readSerial();
-	void writeSerial(String s);
-	SoftwareSerial* Sim800l::getSerial();
+
 	*/
+	void printSerial(char* s);
+	void printSerial(char ch);
+	void printSerial(float f);
+	void printSerial(int i);
+	//template <class type> void p(type a);
+	//SoftwareSerial* getSerial();
 
  	void begin();	
  	void reset(); 

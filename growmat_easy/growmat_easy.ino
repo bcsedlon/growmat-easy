@@ -1,5 +1,5 @@
-
-#define VERSION 0.1
+#define TEXT_GROWMATEASY "GROWMAT EASY"
+#define VERSION 1
 
 #define LCD_I2CADDR 0x20
 const byte LCD_ROWS = 2;
@@ -62,6 +62,8 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
+
+
 #define UISTATE_ALARMLIST 1
 #define UISTATE_SETCLOCK 2
 
@@ -71,7 +73,8 @@ const byte KPD_COLS = 4;
 //////////////////////////////////
 DateTime nowSetClock;
 DateTime now;
-long secondstime;
+unsigned long milliseconds;
+//long secondstime;
 bool secToggle = false;
 
 char gsmNumber[16];
@@ -136,15 +139,15 @@ public:
 */
 
 class Alarm {
-	//unsigned long timeActive;
-	//unsigned long timeDeactive;
-
-	long timeActive;
-	long timeDeactive;
+	unsigned long timeActive;
+	unsigned long timeDeactive;
+	//long timeActive;
+	//long timeDeactive;
 
  public:
 	// TODO: fix when millis overrun!!!
-	int delay = 5;
+	//int delay = 5;
+	int alarmDelay = 5000;
 	bool active;
 	bool unAck;
 
@@ -152,10 +155,10 @@ class Alarm {
 		if(state) {
 			if(!active) {
 				if(!timeActive)
-					//timeActive = millis();
-					timeActive = secondstime;
-				//if((timeActive + delay) < millis()) {
-				if((timeActive + delay) < secondstime) {
+					timeActive = milliseconds;
+					//timeActive = secondstime;
+				if((timeActive + alarmDelay) < milliseconds) {
+				//if((timeActive + delay) < secondstime) {
 					active = true;
 					unAck = true;
 					timeActive = 0;
@@ -173,10 +176,10 @@ class Alarm {
 		if(state){
 			if(active) {
 				if(!timeDeactive)
-					//timeDeactive = millis();
-					timeDeactive = secondstime;
-				//if((timeDeactive + delay) < millis()) {
-				if((timeDeactive + delay) < secondstime) {
+					timeDeactive = milliseconds;
+					//timeDeactive = secondstime;
+				if((timeDeactive + alarmDelay) < milliseconds) {
+				//if((timeDeactive + delay) < secondstime) {
 					active = false;
 					timeDeactive = 0;
 					return true;
@@ -201,14 +204,66 @@ Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2;
 // SIM800L
 #include "libraries/Sim800l/Sim800l.h"
 #include <SoftwareSerial.h> //is necessary for the library!!
+//Sim800l sim800l;  //to declare the library
+
+class Sim800l2 : public Sim800l {
+
+public:
+	/*
+	Sim800l2() : Sim800l() {
+		//TODO TEST !!!
+		na = true;
+    };
+    */
+
+	bool Sim800l2::sendSmsBegin(char* number){
+
+		printSerial("AT+CMGF=1\r"); //set sms to text mode
+	    _buffer=_readSerial();
+	    printSerial("AT+CMGS=\"");  // command to send sms
+	    printSerial(number);
+	    printSerial("\"\r");
+	    _buffer=_readSerial();
+	    return true;
+	}
+/*
+	template <class type> void sendSmsText(type a)
+	{
+		printSerial(a);
+	}*/
+
+	void Sim800l2::sendSmsText(char* s) {
+		printSerial(s);
+	}
+	void Sim800l2::sendSmsText(char ch) {
+		printSerial(ch);
+	}
+	void Sim800l2::sendSmsText(float f) {
+		printSerial(f);
+	}
+	void Sim800l2::sendSmsText(int i) {
+		printSerial(i);
+	}
+
+	bool Sim800l2::sendSmsEnd(){
+		printSerial("\r");
+		delay(100);
+		printSerial((char)26);
+		_buffer=_readSerial();
+		//expect CMGS:xxx   , where xxx is a number,for the sending sms.
+		if (((_buffer.indexOf("CMGS") ) != -1 ) )
+			return true;
+		else
+			return false;
+	}
+};
+
 Sim800l sim800l;  //to declare the library
 
 
-void infoSerial(HardwareSerial *ser);
-
 class GsmManager {
 public:
-	Sim800l* sim;
+	Sim800l2* sim;
 	//uint8_t callStatus;
 	//00420123456789
 
@@ -218,9 +273,9 @@ public:
 	//String response = String("");
 
 	//unsigned long callDuration;
-	long secondsCall;
+	long millisecondsCall;
 
-	GsmManager(Sim800l* sim_c, int* gsmCode_c, char* gsmNumber_c) {
+	GsmManager(Sim800l2* sim_c, int* gsmCode_c, char* gsmNumber_c) {
 		sim = sim_c;
 		gsmCode = gsmCode_c;
 		gsmNumber = gsmNumber_c;
@@ -233,11 +288,12 @@ public:
 
 	void call(){
 		//if(!callDuration) {
-		if(!secondsCall && gsmMode > 1) {
-			Serial.println("CALLING ...");
+		if(!millisecondsCall && gsmMode > 1) {
+			Serial.println(F("CALLING"));
 			sim->callNumber(gsmNumber);
 			//callDuration= millis();
-			secondsCall = secondstime;
+			//secondsCall = secondstime;
+			millisecondsCall= milliseconds;
 		}
 
 	}
@@ -246,11 +302,12 @@ public:
 		//callStatus = sim->getCallStatus();
 		// TODO: solve millis overflow
 		//if(callDuration && (callDuration + 30000 < millis())){
-		if(secondsCall && (secondsCall + 30 < secondstime)){
-			Serial.println("HANG UP");
+		//if(secondsCall && (secondsCall + 30 < secondstime)){
+		if(millisecondsCall && (millisecondsCall + 60000 < milliseconds)){
+			Serial.println(F("HANG UP"));
 			sim->hangoffCall();
 			//callDuration = 0;
-			secondsCall = 0;
+			millisecondsCall = 0;
 		}
 	}
 
@@ -267,9 +324,8 @@ public:
 		//	return false;
 
 		String text = sim->readSms(21);
-
 		//TODO TEST
-		text = "#CODE1040 #?";
+		//text = "#CODE1040 #?";
 
 		if(text != "") {
 			sim->delAllSms();
@@ -294,13 +350,75 @@ public:
 						}
 					}
 
+					pos = text.indexOf("#MODE");
+					if(pos > -1) {
+						// save new gsm number
+						gsmMode = text.charAt(pos + 5) - 48;
+						OMEEPROM::write(GSMMODE_ADDR, gsmMode);
+					}
+
 
 					pos = text.indexOf("#?");
 					if(pos > -1) {// && gsmMode > 1) {
 						//TODO
 						//char msg[256];// = "GROWMAT INFO";
 						//bool r = sim->sendSms(gsmNumber, msg);
-						Serial.println("SEND SMS");
+						Serial.println(F("SENDING SMS"));
+
+						//sim->sendSms(gsmNumber, "TEST");
+
+						sim->sendSmsBegin(gsmNumber);
+						//sim->sendSmsText("TEST");
+						//sim->sendSmsEnd();
+
+
+						if(tempHighAlarm2.active) sim->sendSmsText("TEMP+!\n");
+						if(tempLowAlarm2.active) sim->sendSmsText("TEMP-!\n");
+						if(lightHighAlarm2.active) sim->sendSmsText("LIGHT+!\n");
+						if(lightLowAlarm2.active) sim->sendSmsText("LIGHT-!\n");
+						//sim->sendSmsText("\n");
+
+						sim->sendSmsText("L");
+						lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						lightMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" H");
+						heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" V");
+						ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" C");
+						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText("\n");
+
+						sim->sendSmsText("TEMP=");
+						sim->sendSmsText(temperature);
+						sim->sendSmsText("\nHUMI=");
+						sim->sendSmsText(humidity);
+						sim->sendSmsText("\nLIGHT=");
+						sim->sendSmsText(light);
+						sim->sendSmsText("\n");
+
+						sim->sendSmsText("\GSM CODE=");
+						sim->sendSmsText((int)gsmCode);
+						/*
+						sim->sendSmsText("\nGSM MODE=");
+						sim->sendSmsText(gsmMode);
+						sim->sendSmsText("\nGSM NUMBER=");
+						sim->sendSmsText(gsmNumber);
+						*/
+
+						/*
+						sim->sendSmsText("\n\n");
+						char msg[MESSAGELENGTH + 1];
+						for(int i = 0; i< MESSAGESCOUNT; i++) {
+						  	readMessage(i, (byte*)msg);
+						  	sim->sendSmsText(msg);
+						 }
+						 */
+
+						sim->sendSmsEnd();
 					}
 
 					pos = text.indexOf("#L");
@@ -846,7 +964,8 @@ void setup() {
 	Serial.begin(9600);
 	while(!Serial);
 
-	Serial.print("GROWMAT EASY ");
+	Serial.print(TEXT_GROWMATEASY);
+	Serial.print(' ');
 	Serial.println(VERSION);
 	Serial.println();
 
@@ -861,7 +980,7 @@ void setup() {
 	dht.begin();
 	rtc.begin();
 	if (rtc.lostPower()) {
-		Serial.println("RTC lost power, lets set the time!");
+		Serial.println(F("RTC LOST POWER!"));
 		// following line sets the RTC to the date & time this sketch was compiled
 		rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		// This line sets the RTC with an explicit date & time, for example to set
@@ -869,7 +988,8 @@ void setup() {
 		// rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
 	}
 	now = rtc.now();
-	secondstime = now.secondstime();
+	//secondstime = now.secondstime();
+	milliseconds = millis();
 
 	saveMessage(MESSAGE_ALARM_POWERON, MESSAGE_ALARM_ON);
 
@@ -956,27 +1076,34 @@ void infoSerial(Stream* ser) {
 //////////////////////////////////
 // main loop
 //////////////////////////////////
+unsigned long millisecondsGsm;
 void loop() {
 
 	now = rtc.now();
 
 	// second counter
-	if(now.secondstime() > secondstime) {
+	//if(now.secondstime() > secondstime) {
+	if(milliseconds + 1000 < millis() || millis() < milliseconds) {
 
-		cyclerDuration += now.secondstime() - secondstime ;
+		//cyclerDuration += now.secondstime() - secondstime ;
+		//TOD add real time diference
+		cyclerDuration++;
 
 		secToggle ? secToggle = false : secToggle = true;
 		if (!Menu.shown()) {
 			if(!uiState)
 				uiMain();
 		}
-		secondstime = now.secondstime();
-		Serial.println(secondstime);
-
+		//secondstime = now.secondstime();
+		milliseconds = millis();
+		//Serial.println(secondstime);
+		//Serial.println(milliseconds);
 
 		// how often check sms, time expensive
-		if(!(secondstime % 10) && gsmMode > 0) {
+		//if(!(secondstime % 60) && gsmMode > 0) {
+		if((millisecondsGsm + 10000 < milliseconds) && gsmMode > 0) {
 			//Serial.println("SMS CHECK");
+			millisecondsGsm = milliseconds;
 			gsmMgr.proceedSMS();//&lightMode, &heaterMode, &ventMode, &cyclerMode);
 		}
 	}
@@ -1144,14 +1271,16 @@ void loop() {
   		// read the incoming byte:
   		//incomingByte = Serial.read();
   		if (Serial.readString().indexOf("?")!=-1 ) {
- 			//Serial.println("TEST");
+
+  			//Serial.println(F("OK"));
+
   			//infoSerial((Stream*)&Serial);
 
 
-  			if(tempHighAlarm2.active) Serial.println("TEMP HIGH!");
-  			if(tempLowAlarm2.active) Serial.println("TEMP LOW!");
-  			if(lightHighAlarm2.active) Serial.println("LIGHT HIGH!");
-  			if(lightLowAlarm2.active) Serial.println("LIGHT LOW!");
+  			if(tempHighAlarm2.active) Serial.println(F("TEMP+!"));
+  			if(tempLowAlarm2.active) Serial.println(F("TEMP-"));
+  			if(lightHighAlarm2.active) Serial.println(F("LIGHT+"));
+  			if(lightLowAlarm2.active) Serial.println(F("LIGHT-"));
   			Serial.println();
 
   			Serial.print("L");
@@ -1243,7 +1372,7 @@ void callAction() {
 
 	lcd.clear();
 	lcd.setCursor(0, 0);
-	lcd.print(" CALLING ...");
+	lcd.print(F(" CALLING ..."));
 	lcd.setCursor(1, 1);
 	lcd.print(gsmNumber);
 
@@ -1270,7 +1399,7 @@ void uiDraw(char* p_text, int p_row, int p_col, int len) {
 
 void uiInstrument(bool instrument, byte mode) {
 	lcd.print(instrument);
-	mode ? lcd.print("M") : lcd.print("A");
+	mode ? lcd.print('M') : lcd.print('A');
 }
 
 
@@ -1338,7 +1467,7 @@ void uiScreen() {
 		//TODO sprintf
 		//DateTime now = rtc.now();
 		lcd.setCursor(0,0);
-		lcd.print("SET CLOCK  ");
+		lcd.print(F("SET CLOCK  "));
 		if(nowSetClock.hour()<10)
 			lcd.print('0');
 		lcd.print(nowSetClock.hour());
@@ -1347,12 +1476,12 @@ void uiScreen() {
 			lcd.print('0');
 		lcd.print(nowSetClock.minute());
 		lcd.setCursor(0,1);
-		lcd.print("1- H 2+  3- M A+");
+		lcd.print(F("1- H 2+  3- M A+"));
 
 		if(key == 'D') {
 
 			rtc.adjust(nowSetClock);
-			secondstime = nowSetClock.secondstime();
+			//secondstime = nowSetClock.secondstime();
 			Menu.enable(true);
 			//uiState=0;
 		}
@@ -1363,9 +1492,9 @@ void uiInfo() {
 	//"123456789ABCDEF"
 	lcd.clear();
 	lcd.setCursor(0, 0);
-	lcd.print("BCSEDLON@");
+	lcd.print(F("BCSEDLON@"));
 	lcd.setCursor(0, 1);
-	lcd.print("GMAIL.COM");
+	lcd.print(F("GMAIL.COM"));
 	Menu.enable(false);
 }
 
@@ -1378,6 +1507,7 @@ void uiMain() {
 
 	//TODO
 	//secToggle ? secToggle = false : secToggle = true;
+	//DateTime now = rtc.now();
 
 	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
@@ -1388,45 +1518,45 @@ void uiMain() {
 
 	lcd.setCursor(0, 0);
 	if(tempHighAlarm2.active)
-		secToggle ? lcd.print("+") : lcd.print(" ");
+		secToggle ? lcd.print('+') : lcd.print(' ');
 	else if(tempLowAlarm2.active)
-		secToggle ? lcd.print("-") : lcd.print(" ");
+		secToggle ? lcd.print('-') : lcd.print(' ');
 	else
-		lcd.print(" ");
+		lcd.print(' ');
 
-	lcd.print("t");
+	lcd.print('t');
 	if(abs(temperature) < 10)
-		lcd.print("0");
+		lcd.print('0');
 	lcd.print(temperature);
 
 	lcd.setCursor(6, 0);
 	lcd.print(" h");
 	if(abs(temperature) < 10)
-		lcd.print("0");
+		lcd.print('0');
 	lcd.print(humidity);
 
 	//DateTime now = rtc.now();
 	lcd.setCursor(10, 0);
-	lcd.print(" ");
+	lcd.print(' ');
 	if (now.hour() < 10)
-		lcd.print("0");
+		lcd.print('0');
 	lcd.print(now.hour(), DEC);
-	secToggle ? lcd.print(":") : lcd.print(" ");
+	secToggle ? lcd.print(':') : lcd.print(' ');
 	if (now.minute() < 10)
-		lcd.print("0");
+		lcd.print('0');
 	lcd.print(now.minute(), DEC);
 
 
 
 	lcd.setCursor(0, 1);
 	if(lightHighAlarm2.active)
-		secToggle ? lcd.print("+") : lcd.print(" ");
+		secToggle ? lcd.print('+') : lcd.print(' ');
 	else if(lightLowAlarm2.active)
-		secToggle ? lcd.print("-") : lcd.print(" ");
+		secToggle ? lcd.print('-') : lcd.print(' ');
 	else if(light < lightValueAlarm)
-		lcd.print("*");
+		lcd.print('*');
 	else
-		lcd.print(" ");
+		lcd.print(' ');
 
 	/*
 	lcd.print(light2.getString());
