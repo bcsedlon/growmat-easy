@@ -268,7 +268,7 @@ public:
 	}
 
 	bool Sim800l2::sendSmsEnd(){
-		printSerial("\r");
+		//printSerial("\r");
 		delay(100);
 		printSerial((char)26);
 		_buffer=_readSerial();
@@ -412,75 +412,76 @@ public:
 					}
 
 					pos = text.indexOf("#?");
-										if(pos > -1) {// && gsmMode > 1) {
+					if(pos > -1) {// && gsmMode > 1) {
 
-											//TODO
-											//char msg[256];// = "GROWMAT INFO";
-											//bool r = sim->sendSms(gsmNumber, msg);
-											Serial.println(F("SENDING SMS"));
+						//TODO
+						//char msg[256];// = "GROWMAT INFO";
+						//bool r = sim->sendSms(gsmNumber, msg);
+						Serial.println(F("SENDING SMS"));
 
-											//sim->sendSms(gsmNumber, "TEST");
+						//sim->sendSms(gsmNumber, "TEST");
 
-											sim->sendSmsBegin(gsmNumber);
-											//sim->sendSmsText("TEST");
-											//sim->sendSmsEnd();
-
-
-											if(tempHighAlarm2.active) sim->sendSmsText(MESSAGE_TEMPHIGH);
-											if(tempLowAlarm2.active) sim->sendSmsText(MESSAGE_TEMPLOW);
-											if(lightHighAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTHIGH);
-											if(lightLowAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTLOW);
-
-											//sim->sendSmsTextT(10);
-											//sim->sendSmsTextT(0.3);
-											//sim->sendSmsTextT("XD");
-											//sim->sendSmsTextT('!');
-
-											sim->sendSmsText("L");
-											lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-											lightMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-											sim->sendSmsText(" H");
-											heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-											heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-											sim->sendSmsText(" V");
-											ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-											ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-											sim->sendSmsText(" C");
-											cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-											cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-											sim->sendSmsText("\n");
-
-											sim->sendSmsText(MESSAGE_TEMP);
-											sim->sendSmsText(temperature);
-											sim->sendSmsText(MESSAGE_HUMI);
-											sim->sendSmsText(humidity);
-											sim->sendSmsText(MESSAGE_LIGHT);
-											sim->sendSmsText(light);
-											sim->sendSmsText("\n");
+						sim->sendSmsBegin(gsmNumber);
+						sim->sendSmsText("\n");
+						//sim->sendSmsText("TEST");
+						//sim->sendSmsEnd();
 
 
-											sim->sendSmsText(MESSAGE_GSM);
-											sim->sendSmsText(gsmMode);
+						if(tempHighAlarm2.active) sim->sendSmsText(MESSAGE_TEMPHIGH);
+						if(tempLowAlarm2.active) sim->sendSmsText(MESSAGE_TEMPLOW);
+						if(lightHighAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTHIGH);
+						if(lightLowAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTLOW);
 
-											//sim->sendSmsText("\nGSM MODE=");
-											//sim->sendSmsText(gsmMode);
-											//sim->sendSmsText("\nGSM NUMBER=");
-											//sim->sendSmsText(gsmNumber);
+						//sim->sendSmsTextT(10);
+						//sim->sendSmsTextT(0.3);
+						//sim->sendSmsTextT("XD");
+						//sim->sendSmsTextT('!');
+
+						sim->sendSmsText("L");
+						lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						lightMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" H");
+						heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" V");
+						ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" C");
+						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText("\n");
+
+						sim->sendSmsText(MESSAGE_TEMP);
+						sim->sendSmsText(temperature);
+						sim->sendSmsText(MESSAGE_HUMI);
+						sim->sendSmsText(humidity);
+						sim->sendSmsText(MESSAGE_LIGHT);
+						sim->sendSmsText(light);
+
+
+						sim->sendSmsText(MESSAGE_GSM);
+						sim->sendSmsText(gsmMode);
+						sim->sendSmsText("\n");
+						//sim->sendSmsText("\nGSM MODE=");
+						//sim->sendSmsText(gsmMode);
+						//sim->sendSmsText("\nGSM NUMBER=");
+						//sim->sendSmsText(gsmNumber);
 
 
 
-											sim->sendSmsText("\n\n");
-											char msg[MESSAGELENGTH + 1];
-											//for(int i = 0; i< MESSAGESCOUNT; i++) {
-											for(int i = 0; i< 3; i++) {
-											  	readMessage(i, (byte*)msg);
-											  	sim->sendSmsText(msg);
-											  	sim->sendSmsText("\n");
-											 }
+						//sim->sendSmsText("\n\n");
+						char msg[MESSAGELENGTH + 1];
+						//for(int i = 0; i< MESSAGESCOUNT; i++) {
+						for(int i = 0; i< 3; i++) {
+							sim->sendSmsText("\n");
+							readMessage(i, (byte*)msg);
+							sim->sendSmsText(msg);
+
+						 }
 
 
-											sim->sendSmsEnd();
-										}
+						sim->sendSmsEnd();
+					}
 				}
 			}
 		}
