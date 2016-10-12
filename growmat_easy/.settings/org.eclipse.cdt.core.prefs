@@ -166,10 +166,10 @@ environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.DTS/value=3600
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.LOCAL/delimiter=;
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.LOCAL/operation=replace
-environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.LOCAL/value=1476205608
+environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.LOCAL/value=1476294285
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.UTC/delimiter=;
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.UTC/operation=replace
-environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.UTC/value=1476198408
+environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.UTC/value=1476287085
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.ZONE/delimiter=;
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.ZONE/operation=replace
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/A.EXTRA.TIME.ZONE/value=3600
@@ -421,7 +421,7 @@ environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.B
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.BOARD_NAME/value=Arduino Nano
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.COM_PORT/delimiter=;
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.COM_PORT/operation=replace
-environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.COM_PORT/value=COM16
+environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.COM_PORT/value=COM2
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.EXTRA.C.COMPILE/delimiter=;
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.EXTRA.C.COMPILE/operation=replace
 environment/project/it.baeyens.arduino.core.toolChain.release.991442888/JANTJE.EXTRA.C.COMPILE/value=

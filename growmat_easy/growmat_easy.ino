@@ -42,15 +42,16 @@ const byte KPD_COLS = 4;
 
 #define TEMPHIGHTEMPALARM_ADDR 68
 #define TEMPLOWTEMPALARM_ADDR 72
-#define LIGHTVALUEALARM_ADDR 76
+#define LIGHTHIGHVALUEALARM_ADDR 76
+#define LIGHTLOWVALUEALARM_ADDR 80
 
-#define GSMNUMBER_ADDR 80  //16 bytes
-#define GSMCODE_ADDR 96
-#define GSMMODE_ADDR 98
+#define GSMNUMBER_ADDR 100  //16 bytes
+#define GSMCODE_ADDR 116
+#define GSMMODE_ADDR 118
 
-#define MESSAGESOFFSET_ADDR 100
-#define MESSAGES_ADDR 104
-#define MESSAGESCOUNT 32
+#define MESSAGESOFFSET_ADDR 120
+#define MESSAGES_ADDR 124
+#define MESSAGESCOUNT 8
 #define MESSAGELENGTH 16
 
 //                              "0123456789ABCDEF"
@@ -62,11 +63,29 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
-#define GSMCHECKSMSINTERVAL  10000
+#define MESSAGE_TEMPHIGH "T+!\n"
+#define MESSAGE_TEMPLOW "T-!\n"
+#define MESSAGE_LIGHTHIGH "L+!\n"
+#define MESSAGE_LIGHTLOW "L-!\n"
+
+#define MESSAGE_TEMP "\nT="
+#define MESSAGE_HUMI "\nH="
+#define MESSAGE_LIGHT "\nL="
+#define MESSAGE_GSM  "\nGSM="
+
+#define GSMCHECKSMSINTERVAL  60000
 #define GSMCALLDURATION  30000
 
 #define UISTATE_ALARMLIST 1
 #define UISTATE_SETCLOCK 2
+#define UISTATE_MEAS 3
+
+#define KPD_UP 'A'
+#define KPD_DOWN 'B'
+#define KPD_LEFT '#'
+#define KPD_RIGHT 'D'
+#define KPD_ENTER '*'
+#define KPD_ESC '0'
 
 
 //////////////////////////////////
@@ -74,7 +93,7 @@ const byte KPD_COLS = 4;
 //////////////////////////////////
 DateTime nowSetClock;
 DateTime now;
-unsigned long milliseconds;
+unsigned long milliseconds, secondsCounter;
 //long secondstime;
 bool secToggle = false;
 
@@ -82,8 +101,9 @@ char gsmNumber[16];
 uint16_t gsmCode = 9999;
 byte gsmMode = 0;
 
-char pressed = 0;
+char uiKeyPressed = 0;
 int uiState, uiPage;
+unsigned long uiKeyTime;
 
 //unsigned long gsmTime = 0;
 //unsigned long uiTime = 0; // ui counter
@@ -107,7 +127,7 @@ unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
 float heaterOnTemp, heaterOffTemp;
 float ventOnTemp, ventOffTemp;
 unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
-float tempHighTempAlarm, tempLowTempAlarm, lightValueAlarm;
+float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
@@ -275,7 +295,7 @@ public:
 	//String response = String("");
 
 	//unsigned long callDuration;
-	long millisecondsCall;
+	unsigned long millisecondsCall;
 
 	GsmManager(Sim800l2* sim_c, int* gsmCode_c, char* gsmNumber_c) {
 		sim = sim_c;
@@ -327,7 +347,7 @@ public:
 
 		String text = sim->readSms(21);
 		//TODO TEST
-		//text = "#CODE1040 #?";
+		//text = "#CODE9999 #00420724095917";
 
 		if(text != "") {
 			sim->delAllSms();
@@ -336,11 +356,10 @@ public:
 				int pos;
 				char ch;
 
+				Serial.println(text);
 
-				//Serial.println(text);
-
-				pos = text.indexOf("#CODE");
-				if(text.substring(pos+5, pos+9) == String(*gsmCode, DEC)) {
+				pos = text.indexOf("#P");
+				if(text.substring(pos+2, pos+6) == String(*gsmCode, DEC)) {
 					//Serial.println("CODE OK");
 
 					pos = text.indexOf("#00");
@@ -360,74 +379,7 @@ public:
 					}
 
 
-					pos = text.indexOf("#?");
-					if(pos > -1) {// && gsmMode > 1) {
-						//TODO
-						//char msg[256];// = "GROWMAT INFO";
-						//bool r = sim->sendSms(gsmNumber, msg);
-						Serial.println(F("SENDING SMS"));
 
-						//sim->sendSms(gsmNumber, "TEST");
-
-						sim->sendSmsBegin(gsmNumber);
-						//sim->sendSmsText("TEST");
-						//sim->sendSmsEnd();
-
-
-						if(tempHighAlarm2.active) sim->sendSmsText("!T+\n");
-						if(tempLowAlarm2.active) sim->sendSmsText("!T-\n");
-						if(lightHighAlarm2.active) sim->sendSmsText("!L+\n");
-						if(lightLowAlarm2.active) sim->sendSmsText("!L-\n");
-
-						//sim->sendSmsTextT(10);
-						//sim->sendSmsTextT(0.3);
-						//sim->sendSmsTextT("XD");
-						//sim->sendSmsTextT('!');
-
-						sim->sendSmsText("L");
-						lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-						lightMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText(" H");
-						heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-						heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText(" V");
-						ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-						ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText(" C");
-						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText("\n");
-
-						sim->sendSmsText("T=");
-						sim->sendSmsText(temperature);
-						sim->sendSmsText("\nH=");
-						sim->sendSmsText(humidity);
-						sim->sendSmsText("\nL=");
-						sim->sendSmsText(light);
-						sim->sendSmsText("\n");
-
-						sim->sendSmsText("\GSM MODE=");
-						sim->sendSmsText(gsmMode);
-						/*
-						sim->sendSmsText("\nGSM MODE=");
-						sim->sendSmsText(gsmMode);
-						sim->sendSmsText("\nGSM NUMBER=");
-						sim->sendSmsText(gsmNumber);
-						*/
-
-
-						sim->sendSmsText("\n\n");
-						char msg[MESSAGELENGTH + 1];
-						//for(int i = 0; i< MESSAGESCOUNT; i++) {
-						for(int i = 0; i< 3; i++) {
-						  	readMessage(i, (byte*)msg);
-						  	sim->sendSmsText(msg);
-						  	sim->sendSmsText("\n");
-						 }
-
-
-						sim->sendSmsEnd();
-					}
 
 					pos = text.indexOf("#L");
 					if(pos > -1) {
@@ -458,6 +410,77 @@ public:
 						else if(ch=='0') cyclerMode = 1;
 						else if(ch=='1') cyclerMode = 2;
 					}
+
+					pos = text.indexOf("#?");
+										if(pos > -1) {// && gsmMode > 1) {
+
+											//TODO
+											//char msg[256];// = "GROWMAT INFO";
+											//bool r = sim->sendSms(gsmNumber, msg);
+											Serial.println(F("SENDING SMS"));
+
+											//sim->sendSms(gsmNumber, "TEST");
+
+											sim->sendSmsBegin(gsmNumber);
+											//sim->sendSmsText("TEST");
+											//sim->sendSmsEnd();
+
+
+											if(tempHighAlarm2.active) sim->sendSmsText(MESSAGE_TEMPHIGH);
+											if(tempLowAlarm2.active) sim->sendSmsText(MESSAGE_TEMPLOW);
+											if(lightHighAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTHIGH);
+											if(lightLowAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTLOW);
+
+											//sim->sendSmsTextT(10);
+											//sim->sendSmsTextT(0.3);
+											//sim->sendSmsTextT("XD");
+											//sim->sendSmsTextT('!');
+
+											sim->sendSmsText("L");
+											lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+											lightMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+											sim->sendSmsText(" H");
+											heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+											heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+											sim->sendSmsText(" V");
+											ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+											ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+											sim->sendSmsText(" C");
+											cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+											cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+											sim->sendSmsText("\n");
+
+											sim->sendSmsText(MESSAGE_TEMP);
+											sim->sendSmsText(temperature);
+											sim->sendSmsText(MESSAGE_HUMI);
+											sim->sendSmsText(humidity);
+											sim->sendSmsText(MESSAGE_LIGHT);
+											sim->sendSmsText(light);
+											sim->sendSmsText("\n");
+
+
+											sim->sendSmsText(MESSAGE_GSM);
+											sim->sendSmsText(gsmMode);
+
+											//sim->sendSmsText("\nGSM MODE=");
+											//sim->sendSmsText(gsmMode);
+											//sim->sendSmsText("\nGSM NUMBER=");
+											//sim->sendSmsText(gsmNumber);
+
+
+
+											sim->sendSmsText("\n\n");
+											char msg[MESSAGELENGTH + 1];
+											//for(int i = 0; i< MESSAGESCOUNT; i++) {
+											for(int i = 0; i< 3; i++) {
+											  	readMessage(i, (byte*)msg);
+											  	sim->sendSmsText(msg);
+											  	sim->sendSmsText("\n");
+											 }
+
+
+											sim->sendSmsEnd();
+										}
 				}
 			}
 		}
@@ -614,7 +637,36 @@ public:
     Keypad_I2C2(char *userKeymap, byte *row, byte *col, byte numRows, byte numCols, byte address, byte width = 1) : Keypad_I2C(userKeymap, row, col, numRows, numCols, address, width) {
     };
 
+    char Keypad_I2C2::getRawKey() {
+
+    	getKeys();
+
+    	if(bitMap[3] == 1) return '*';
+    	if(bitMap[3] == 2) return '7';
+    	if(bitMap[3] == 4) return '4';
+    	if(bitMap[3] == 8) return '1';
+
+    	if(bitMap[2] == 1) return '0';
+    	if(bitMap[2] == 2) return '8';
+    	if(bitMap[2] == 4) return '5';
+    	if(bitMap[2] == 8) return '2';
+
+    	if(bitMap[1] == 1) return '#';
+    	if(bitMap[1] == 2) return '9';
+    	if(bitMap[1] == 4) return '6';
+    	if(bitMap[1] == 8) return '3';
+
+    	if(bitMap[0] == 1) return 'D';
+    	if(bitMap[0] == 2) return 'C';
+    	if(bitMap[0] == 4) return 'B';
+    	if(bitMap[0] == 8) return 'A';
+
+    	return NO_KEY;
+
+    };
+
     char Keypad_I2C2::getKey2() {
+
     	getKeys();
 
     	//TODO !!! Dirty trick !!!
@@ -639,11 +691,12 @@ public:
     	}
 
     	//Serial.println(kTime);
+    	// For menu system, makes delay between first and next
     	if(bitMap[0] || bitMap[1] || bitMap[2] || bitMap[3]) {
     		if(!kTime) {
     			kTime = millis();
     		}
-    		if((kTime + 600) > millis()){
+    		if((kTime + 500) > millis()){
     			if((kTime + 200) < millis()) {
     				return NO_KEY;
     			}
@@ -652,6 +705,8 @@ public:
         else
         	kTime = 0;
 
+    	return getRawKey();
+    	/*
     	if(bitMap[3] == 1) return '*';
     	if(bitMap[0] == 8) return 'A';
     	if(bitMap[0] == 4) return 'B';
@@ -666,6 +721,7 @@ public:
 
     	if(bitMap[2] == 1) return '0';
     	return NO_KEY;
+    	*/
     }
 };
 
@@ -729,10 +785,10 @@ MENU_VALUE lightOnMin_value =  { TYPE_UINT,       59,    0,     MENU_TARGET(&lig
 MENU_VALUE lightOffHour_value ={ TYPE_UINT,       23,    0,     MENU_TARGET(&lightOffHour), LIGHTOFFHOUR_ADDR };
 MENU_VALUE lightOffMin_value = { TYPE_UINT,       59,    0,     MENU_TARGET(&lightOffMin), LIGHTOFFMIN_ADDR };
 //                                "123456789ABCDEF"
-MENU_ITEM lightOnHour_item   = { {"LIGHT ON    [h]"},   ITEM_VALUE,  0,        MENU_TARGET(&lightOnHour_value) };
-MENU_ITEM lightOnMin_item   =  { {"LIGHT ON    [m]"},    ITEM_VALUE,  0,        MENU_TARGET(&lightOnMin_value) };
-MENU_ITEM lightOffHour_item  = { {"LIGHT OFF   [h]"},  ITEM_VALUE,  0,        MENU_TARGET(&lightOffHour_value) };
-MENU_ITEM lightOffMin_item   = { {"LIGHT OFF   [m]"},   ITEM_VALUE,  0,        MENU_TARGET(&lightOffMin_value) };
+MENU_ITEM lightOnHour_item   = { {"LIGHT ON    [H]"},   ITEM_VALUE,  0,        MENU_TARGET(&lightOnHour_value) };
+MENU_ITEM lightOnMin_item   =  { {"LIGHT ON    [M]"},    ITEM_VALUE,  0,        MENU_TARGET(&lightOnMin_value) };
+MENU_ITEM lightOffHour_item  = { {"LIGHT OFF   [H]"},  ITEM_VALUE,  0,        MENU_TARGET(&lightOffHour_value) };
+MENU_ITEM lightOffMin_item   = { {"LIGHT OFF   [M]"},   ITEM_VALUE,  0,        MENU_TARGET(&lightOffMin_value) };
 
 MENU_SELECT heaterMode_select ={ &heaterMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
 MENU_VALUE heaterMode_value =  { TYPE_SELECT,     0,     0,     MENU_TARGET(&heaterMode_select) };
@@ -760,10 +816,10 @@ MENU_VALUE cyclerOnSec_value = { TYPE_UINT,      0,     0,     MENU_TARGET(&cycl
 MENU_VALUE cyclerOffMin_value= { TYPE_UINT,      0,     0,     MENU_TARGET(&cyclerOffMin), CYCLEROFFMIN_ADDR };
 MENU_VALUE cyclerOffSec_value= { TYPE_UINT,      0,     0,     MENU_TARGET(&cyclerOffSec), CYCLEROFFSEC_ADDR };
 //                                "123456789ABCDEF"
-MENU_ITEM cyclerOnMin_item   = { {"CYCLER ON   [m]"},   ITEM_VALUE,  0,        MENU_TARGET(&cyclerOnMin_value) };
-MENU_ITEM cyclerOnSec_item   = { {"CYCLER ON   [s]"},    ITEM_VALUE,  0,        MENU_TARGET(&cyclerOnSec_value) };
-MENU_ITEM cyclerOffMin_item  = { {"CYCLER OFF  [m]"},  ITEM_VALUE,  0,        MENU_TARGET(&cyclerOffMin_value) };
-MENU_ITEM cyclerOffSec_item  = { {"CYCLER OFF  [s]"},   ITEM_VALUE,  0,        MENU_TARGET(&cyclerOffSec_value) };
+MENU_ITEM cyclerOnMin_item   = { {"CYCLER ON   [M]"},   ITEM_VALUE,  0,        MENU_TARGET(&cyclerOnMin_value) };
+MENU_ITEM cyclerOnSec_item   = { {"CYCLER ON   [S]"},    ITEM_VALUE,  0,        MENU_TARGET(&cyclerOnSec_value) };
+MENU_ITEM cyclerOffMin_item  = { {"CYCLER OFF  [M]"},  ITEM_VALUE,  0,        MENU_TARGET(&cyclerOffMin_value) };
+MENU_ITEM cyclerOffSec_item  = { {"CYCLER OFF  [S]"},   ITEM_VALUE,  0,        MENU_TARGET(&cyclerOffSec_value) };
 
 MENU_LIST const submenu_list1[] = { &lightMode_item, &lightOnHour_item, &lightOnMin_item, &lightOffHour_item,  &lightOffMin_item};
 MENU_ITEM menu_submenu1 = { {"LIGHT->"},  ITEM_MENU,  MENU_SIZE(submenu_list1),  MENU_TARGET(&submenu_list1) };
@@ -779,16 +835,20 @@ MENU_ITEM menu_submenu4 = { {"CYCLER->"},  ITEM_MENU,  MENU_SIZE(submenu_list4),
 
 // Alarms
 MENU_VALUE tempHighTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighTempAlarm), TEMPHIGHTEMPALARM_ADDR };
-MENU_ITEM tempHighTempAlarm_item   ={ {"TEMP HIGH A [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighTempAlarm_value) };
+MENU_ITEM tempHighTempAlarm_item   ={ {"TEMP HIGH   [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighTempAlarm_value) };
 
 MENU_VALUE tempLowTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowTempAlarm), TEMPLOWTEMPALARM_ADDR };
-MENU_ITEM tempLowTempAlarm_item   ={ {"TEMP LOW AL [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowTempAlarm_value) };
+MENU_ITEM tempLowTempAlarm_item   ={ {"TEMP LOW    [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowTempAlarm_value) };
+
+//TODO !!!
 
 //                                "123456789ABCDEF"
-MENU_VALUE lightValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightValueAlarm), LIGHTVALUEALARM_ADDR };
-MENU_ITEM lightValueAlarm_item   ={ {"LIGH ALARM  "},    ITEM_VALUE,  0,        MENU_TARGET(&lightValueAlarm_value) };
+MENU_VALUE lightHighValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightHighValueAlarm), LIGHTHIGHVALUEALARM_ADDR };
+MENU_ITEM lightHighValueAlarm_item   ={ {"LIGH HIGH"},    ITEM_VALUE,  0,        MENU_TARGET(&lightHighValueAlarm_value) };
+MENU_VALUE lightLowValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightLowValueAlarm), LIGHTLOWVALUEALARM_ADDR };
+MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        MENU_TARGET(&lightLowValueAlarm_value) };
 
-MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightValueAlarm_item};
+MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item};
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -798,7 +858,7 @@ MENU_ITEM gsmCode_item   ={ {"GSM CODE->"},    ITEM_VALUE,  0,        MENU_TARGE
 MENU_LIST const submenu_list6[] = { &gsmMode_item, &gsmCode_item};
 MENU_ITEM menu_submenu6 = { {"GSM->"},  ITEM_MENU,  MENU_SIZE(submenu_list6),  MENU_TARGET(&submenu_list6) };
 
-MENU_ITEM item_testme   = { {"CALL!"},  ITEM_ACTION, 0,        MENU_TARGET(&callAction) };
+MENU_ITEM item_testme   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
 MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetClock) };
 MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
 MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
@@ -827,7 +887,10 @@ int saveMessage(char msg[], char status) {
     //Serial.println(msg);
 
     //TODO change to sprintf?
-    String m = String();
+
+    String m;
+    m.reserve(16);
+    //String m = String();//"0123456789ABCDEF");
     if(now.day() < 10)
       m += '0';
     m += now.day();
@@ -898,7 +961,8 @@ void loadEEPROM() {
 
     read(TEMPHIGHTEMPALARM_ADDR, tempHighTempAlarm);
     read(TEMPLOWTEMPALARM_ADDR, tempLowTempAlarm);
-    read(LIGHTVALUEALARM_ADDR, lightValueAlarm);
+    read(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
+    read(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
 
     read(GSMMODE_ADDR, gsmMode);
     read(GSMCODE_ADDR, gsmCode);
@@ -908,7 +972,7 @@ void loadEEPROM() {
     }
 }
 
-void saveEEPROM() {
+void saveDefaultEEPROM() {
 	// save defaults
 
     lightMode = 0;
@@ -949,29 +1013,44 @@ void saveEEPROM() {
 
     tempHighTempAlarm = 21.0;
     tempLowTempAlarm = 19.0;
-    lightValueAlarm = 70.0;
+    lightHighValueAlarm = 40.0;
+    lightLowValueAlarm = 60.0;
     OMEEPROM::write(TEMPHIGHTEMPALARM_ADDR, tempHighTempAlarm);
     OMEEPROM::write(TEMPLOWTEMPALARM_ADDR, tempLowTempAlarm);
-    OMEEPROM::write(LIGHTVALUEALARM_ADDR, lightValueAlarm);
+    OMEEPROM::write(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
+    OMEEPROM::write(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
 
+    int iZero = 0;
+    OMEEPROM::write(MESSAGESOFFSET_ADDR, iZero);
+
+    char chZero = '0';
+    for(int i=0 ; i < 15; i++)
+    	OMEEPROM::write(GSMNUMBER_ADDR + i, chZero);
+    char bZero = 0;
+    OMEEPROM::write(GSMNUMBER_ADDR + 15, bZero);
     //gsm??
-    /*
+
     gsmMode = 0;
     gsmCode = 9999;
     OMEEPROM::write(GSMMODE_ADDR, gsmMode);
-    OMEEPROM::write(GSMCODEE_ADDR, gsmCode);
-    */
+    OMEEPROM::write(GSMCODE_ADDR, gsmCode);
+
 }
 
 //////////////////////////////////
 // setup
 //////////////////////////////////
 void setup() {
+
+
+
+
 	pinMode(LEDPIN, OUTPUT);
 
 	Serial.begin(9600);
 	while(!Serial);
 
+	Serial.println();
 	Serial.print(TEXT_GROWMATEASY);
 	Serial.print(' ');
 	Serial.println(VERSION);
@@ -979,6 +1058,8 @@ void setup() {
 
 	if( OMEEPROM::saved() )
 		loadEEPROM();
+	else
+		saveDefaultEEPROM();
 
 	//kpd.addEventListener(keypadEvent);
 	Wire.begin( );
@@ -1088,22 +1169,23 @@ unsigned long millisecondsGsm;
 void loop() {
 
 	now = rtc.now();
-
+	milliseconds = millis();
 	// second counter
 	//if(now.secondstime() > secondstime) {
-	if(milliseconds + 1000 < millis() || millis() < milliseconds) {
+	if(secondsCounter + 1000 < milliseconds || milliseconds < secondsCounter) {
 
 		//cyclerDuration += now.secondstime() - secondstime ;
 		//TOD add real time diference
 		cyclerDuration++;
 
 		secToggle ? secToggle = false : secToggle = true;
-		if (!Menu.shown()) {
-			if(!uiState)
-				uiMain();
-		}
+		//if (!Menu.shown()) {
+		//	if(!uiState)
+		//		uiMain();
+		//}
+
 		//secondstime = now.secondstime();
-		milliseconds = millis();
+		secondsCounter = millis();
 		//Serial.println(secondstime);
 		//Serial.println(milliseconds);
 		Serial.print('.');
@@ -1119,14 +1201,24 @@ void loop() {
 		}
 	}
 
+	if (!Menu.shown()) {
+		if(!uiState)
+			uiMain();
+	}
+
 	char key = kpd.getKey2();
 	if(key == '#') {
-		Menu.enable(true);
+		//uiMain();
 		uiState = 0;
 		uiPage = 0;
+
+		Menu.enable(true);
 	}
-	else if(key == '0') {
+	else if(key == '7') {
 		uiAlarmList();
+	}
+	else if(key == '8') {
+		uiMeas();
 	}
 	else if(!Menu.enable()) {
 		/*
@@ -1202,6 +1294,9 @@ void loop() {
   	for(int i = 0; i < 100; i++)
   		light += analogRead((unsigned char)LIGHTPIN) / 10;
   	light /= 100;
+  	light = 100 - light;
+  	light = max(0, light);
+	light = min(99, light);
 
 
 	//////////////////////////////////
@@ -1255,14 +1350,14 @@ void loop() {
 	if(tempLowAlarm2.deactivate(temperature > (tempLowTempAlarm + tempHysteresis)))
 		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_OFF);
 
-	if(lightLowAlarm2.activate(lightControl && (light > lightValueAlarm)))
+	if(lightLowAlarm2.activate(lightControl && (light < lightLowValueAlarm)))
 		saveMessage(MESSAGE_ALARM_LIGHTLOW, MESSAGE_ALARM_ON);
-	if(lightLowAlarm2.deactivate(!lightControl || (light < lightValueAlarm - lightHysteresis)))
+	if(lightLowAlarm2.deactivate(!lightControl || (light > lightLowValueAlarm + lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTLOW, MESSAGE_ALARM_OFF);
 
-	if(lightHighAlarm2.activate(!lightControl && (light < lightValueAlarm)))
+	if(lightHighAlarm2.activate(!lightControl && (light > lightHighValueAlarm)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_ON);
-	if(lightHighAlarm2.deactivate(lightControl || (light > lightValueAlarm + lightHysteresis)))
+	if(lightHighAlarm2.deactivate(lightControl || (light < lightHighValueAlarm - lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
 
 	if(kpd.getKeys()) {
@@ -1283,15 +1378,24 @@ void loop() {
   		//incomingByte = Serial.read();
   		if (Serial.readString().indexOf("?")!=-1 ) {
 
-  			//Serial.println(F("OK"));
+  			Serial.println(F("OK"));
+
+  			Serial.print(MESSAGE_TEMP);
+  			Serial.print(temperature);
+  			Serial.print(MESSAGE_HUMI);
+  			Serial.print(humidity);
+  			Serial.print(MESSAGE_LIGHT);
+  			Serial.print(light);
+  			Serial.println();
 
   			//infoSerial((Stream*)&Serial);
 
-
-  			if(tempHighAlarm2.active) Serial.println(F("!T+"));
-  			if(tempLowAlarm2.active) Serial.println(F("!T-"));
-  			if(lightHighAlarm2.active) Serial.println(F("!L+"));
-  			if(lightLowAlarm2.active) Serial.println(F("!L-"));
+  			/*
+  			//TODO NO MEMEORY !!!
+  			if(tempHighAlarm2.active) Serial.print(MESSAGE_TEMPHIGH);
+  			if(tempLowAlarm2.active) Serial.print(MESSAGE_TEMPLOW);
+  			if(lightHighAlarm2.active) Serial.print(MESSAGE_LIGHTHIGH);
+  			if(lightLowAlarm2.active) Serial.print(MESSAGE_LIGHTLOW);
   			Serial.println();
 
   			Serial.print("L");
@@ -1308,22 +1412,19 @@ void loop() {
   			cyclerMode ? Serial.print('M'):Serial.print('A');
   			Serial.println();
 
-  			Serial.print("T=");
-  			Serial.print(temperature);
-  			Serial.print("\nH=");
-  			Serial.print(humidity);
-  			Serial.print("\nLIGHT=");
-  			Serial.print(light);
-  			Serial.println();
 
-  			Serial.print("GSM MODE=");
+  			*/
+
+  			Serial.print(MESSAGE_GSM);
   			Serial.print(gsmMode);
-  			Serial.print(" NUMBER=");
+  			Serial.print(' ');
   			Serial.print(gsmNumber);
-  			Serial.print(" CODE=");
+  			Serial.print(' ');
   			Serial.print(gsmCode);
   			Serial.println();
 
+  			/*
+  			//TODO NO MEMEORY !!!
   			Serial.println();
 
   			char msg[MESSAGELENGTH + 1];
@@ -1332,62 +1433,25 @@ void loop() {
   				Serial.println(msg);
   			}
 
-
-  			////////////////TEST
-  			/*
-  			char buffer[256];// = "TEST";
-
-  			int p = 0;
-  			//buffer[p++] = 'A';
-  			//buffer[p++] = 'B';
-  			//buffer[p++] = 0;
-
-  			p += sprintf(buffer + p, "TIME=%02d:%02d\n", now.hour(), now.minute());
-
-  			if(tempLowAlarm2.active)
-  				p += sprintf(buffer + p, "TEMP LOW!\n");
-  			if(tempHighAlarm2.active)
-  				p += sprintf(buffer + p, "TEMP HIGH!\n");
-  			if(lightLowAlarm2.active)
-  				p += sprintf(buffer + p, "LIGHT LOW!\n");
-  			if(lightHighAlarm2.active)
-  				p += sprintf(buffer + p, "LIGHT HIGH!\n");
-
-  			p += sprintf(buffer + p, "T=%02.01f H=%02.01f L=%02.01f\n ", temperature, humidity, light);
-  			p += sprintf(buffer + p, "GSM MODE=%d NUMBER=%s CODE=%04d\n ", gsmMode, gsmNumber, gsmCode);
-
-  			//p += sprintf(buffer + p, "L%s ", getInstrumentString(lightControl, lightMode));
-  			//p += sprintf(buffer + p, "H%s ", getInstrumentString(heaterControl, heaterMode));
-  			//p += sprintf(buffer + p, "V%s ", getInstrumentString(ventControl, ventMode));
-  			//p += sprintf(buffer + p, "C%s\n", getInstrumentString(cyclerControl, cyclerMode));
-
-  			p += sprintf(buffer + p, "L%c%c\n", lightControl ? '0' : '1', lightMode > 0 ? 'M' : 'A');
-  			p += sprintf(buffer + p, "H%c%c\n", heaterControl ? '0' : '1', heaterMode > 0 ? 'M' : 'A');
-  			p += sprintf(buffer + p, "V%c%c\n", ventControl ? '0' : '1', ventMode > 0 ? 'M' : 'A');
-  			p += sprintf(buffer + p, "C%c%c\n", cyclerControl ? '0' : '1', cyclerMode > 0 ? 'M' : 'A');
-
-  			Serial.println(p);
-  			Serial.println(buffer);
   			*/
-
-  		}
+   		}
   	}
 }
 
-void callAction() {
-	//TEST save default values
-	saveEEPROM();
+void uiResetAction() {
 
-	//char* text="Testing Sms";  //text for the message.
-	//char* number="+420000000000"; //change to a valid number.
+	//TEST save default values
+	saveDefaultEEPROM();
 
 	lcd.clear();
 	lcd.setCursor(0, 0);
-	lcd.print(F(" CALLING ..."));
+	lcd.print(F("RESET OK"));
+	/*
 	lcd.setCursor(1, 1);
 	lcd.print(gsmNumber);
 
 	sim800l.callNumber(gsmNumber);
+	*/
 	/*
   	while(Sim800l.getCallStatus() > 0) {
     	lcd.setCursor(0, 1);
@@ -1414,34 +1478,116 @@ void uiInstrument(bool instrument, byte mode) {
 }
 
 
-// user interface menu functions
+// User interface menu functions
 void uiAlarmList() {
 	Menu.enable(false);
 	uiState = UISTATE_ALARMLIST;
+	uiPage=0;
+	uiKeyTime =0;
+	uiKeyPressed = 0;
+	lcd.clear();
+}
+
+void uiMeas() {
+	Menu.enable(false);
+	uiState = UISTATE_MEAS;
+	uiPage=0;
+	uiKeyTime =0;
+	uiKeyPressed = 0;
+	lcd.clear();
 }
 
 void uiSetClock() {
 	Menu.enable(false);
 	uiState = UISTATE_SETCLOCK;
 	nowSetClock = rtc.now();
+	uiPage=0;
+	uiKeyTime = 0;
+	uiKeyPressed = 0;
+	lcd.clear();
 }
+
 
 void uiScreen() {
 	//Menu.enable(false);
 	lcd.backlight();
-	char key = kpd.getKey2();
+
+	char key = kpd.getRawKey();
+	// First key stroke after delay, then pause and then continuously
+	if(key) {
+		 if(!uiKeyTime) {
+			 uiKeyTime = milliseconds;
+		 }
+
+		 if((uiKeyTime + 120) > milliseconds) {
+			 key = 0;
+		 }
+		 else {
+			 if(uiKeyPressed) {
+				 key = 0;
+			 }
+			 else {
+				 uiKeyPressed = key;
+			 }
+		 }
+
+		 if((uiKeyTime + 600) < milliseconds){
+			 uiKeyPressed = 0;
+		 }
+	}
+	else {
+
+		uiKeyTime = 0;
+		uiKeyPressed = 0;
+	}
+
+
+	/*
+	if((k == KPD_LEFT) && !pressed){
+		uiPage--;
+		pressed = k;
+	}
+	if((k == KPD_RIGHT) && !pressed) {
+		uiPage++;
+		pressed = k;
+	}
+	if((k == '*') && !pressed) {
+			pressed = k;
+	}
+	if(k == NO_KEY)
+		pressed = 0;
+	 */
+	if(uiState == UISTATE_MEAS) {
+		lcd.clear();
+		lcd.setCursor(0, 0);
+		lcd.print(light);
+		/*
+		if(abs(temperature) < 10)
+			lcd.print('0');
+		lcd.print(temperature);
+
+		lcd.setCursor(5, 0);
+		lcd.print(' ');
+		if(abs(temperature) < 10)
+			lcd.print('0');
+		lcd.print(humidity);
+
+		lcd.setCursor(7, 0);
+		lcd.print(' ');
+		if(abs(light) < 10)
+			lcd.print('0');
+		lcd.print(light);
+		lcd.print(' ');
+		 */
+
+	}
 
 	if(uiState == UISTATE_ALARMLIST) {
-		if((key == 'A') && !pressed){
+
+		if(key == KPD_UP)
 			uiPage--;
-			pressed = 'A';
-		}
-		if((key == 'B') && !pressed) {
+		if(key == KPD_DOWN)
 			uiPage++;
-			pressed = 'B';
-		}
-		if(key == NO_KEY)
-			pressed = 0;
 
 		char msg[MESSAGELENGTH + 1];
 		uiPage = min(uiPage, MESSAGESCOUNT -2);
@@ -1456,46 +1602,112 @@ void uiScreen() {
 
 	if(uiState == UISTATE_SETCLOCK) {
 
-		uint8_t h = nowSetClock.hour();
-		uint8_t m = nowSetClock.minute();
+		//if(key == KPD_LEFT)
+		//	uiPage--;
+		if(key == KPD_RIGHT)
+			uiPage++;
 
-		key = kpd.getKey2();
-
-		if(key == '1') h--;
-		if(key == '2') h++;
-		if(key == '3') m--;
-		if(key == 'A') m++;
-		//TODO if < time return
-
-		m = min(59, m);
-		m = max(0, m);
-		h = min(23, h);
-		h = max(0, h);
-
-		nowSetClock = DateTime(nowSetClock.year(), nowSetClock.month(), nowSetClock.day(), h, m, nowSetClock.second());
-
-		//Serial.print("uiScreen ");
-		//TODO sprintf
-		//DateTime now = rtc.now();
 		lcd.setCursor(0,0);
-		lcd.print(F("SET CLOCK  "));
-		if(nowSetClock.hour()<10)
-			lcd.print('0');
-		lcd.print(nowSetClock.hour());
-		lcd.print(':');
-		if(nowSetClock.minute()<10)
-			lcd.print('0');
-		lcd.print(nowSetClock.minute());
-		lcd.setCursor(0,1);
-		lcd.print(F("1- H 2+  3- M A+"));
+				  //"0123456789ABCDEF"
+		lcd.print(F("SET CLOCK"));
 
-		if(key == 'D') {
+		uiPage = max(0, uiPage);
+		uiPage = min(4, uiPage);
+
+
+		//k = kpd.getk2();
+
+
+
+
+		uint8_t hh = nowSetClock.hour();
+		uint8_t mm = nowSetClock.minute();
+		uint8_t d = nowSetClock.day();
+		uint8_t m = nowSetClock.month();
+		uint16_t y = nowSetClock.year();
+
+		lcd.setCursor(11,0);
+		if(uiPage==0) {
+			if(key==KPD_UP)hh++;
+			if(key==KPD_DOWN)hh--;
+					  //"0123456789ABCDEF"
+			lcd.print(F(" HOUR"));
+		}
+
+		if(uiPage==1) {
+			if(key==KPD_UP)mm++;
+			if(key==KPD_DOWN)mm--;
+			lcd.print(F("  MIN"));
+		}
+
+		if(uiPage==2) {
+			if(key==KPD_UP)d++;
+			if(key==KPD_DOWN)d--;
+			lcd.print(F("  DAY"));
+		}
+
+		if(uiPage==3) {
+			if(key==KPD_UP)m++;
+			if(key==KPD_DOWN)m--;
+			lcd.print(F("MONTH"));
+		}
+
+		if(uiPage==4) {
+			if(key==KPD_UP)y++;
+			if(key==KPD_DOWN)y--;
+			lcd.print(F(" YEAR"));
+		}
+
+		hh = min(23, hh);
+		hh = max(0, hh);
+		mm = min(59, mm);
+		mm = max(0, mm);
+		d = min(31, d);
+		d = max(1, d);
+		m = min(12, m);
+		m = max(1, m);
+		y = min(9999, y);
+		y = max(2000, y);
+
+		nowSetClock = DateTime(y, m, d, hh, mm, 0);
+
+		lcd.setCursor(0,1);
+		if(hh<10)
+			lcd.print('0');
+		lcd.print(hh);
+		lcd.print(':');
+		if(mm<10)
+			lcd.print('0');
+		lcd.print(mm);
+		lcd.print(' ');
+
+		if(d<10)
+			lcd.print('0');
+		lcd.print(d);
+		lcd.print('/');
+		if(m<10)
+			lcd.print('0');
+		lcd.print(m);
+		lcd.print('/');
+		//if(y<10)
+		//	lcd.print('0');
+		lcd.print(y);
+
+
+		//!!!TODO
+		if(key == KPD_ENTER) {
 
 			rtc.adjust(nowSetClock);
 			//secondstime = nowSetClock.secondstime();
 			Menu.enable(true);
 			//uiState=0;
 		}
+		/*
+		if(key==KPD_ESC) {
+			Menu.enable(true);
+			uiState=0;
+		}
+		*/
 	}
 }
 
@@ -1512,13 +1724,6 @@ void uiInfo() {
 
 
 void uiMain() {
-
-	//if(uiState)
-	//	return;
-
-	//TODO
-	//secToggle ? secToggle = false : secToggle = true;
-	//DateTime now = rtc.now();
 
 	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
@@ -1558,13 +1763,12 @@ void uiMain() {
 	lcd.print(now.minute(), DEC);
 
 
-
 	lcd.setCursor(0, 1);
 	if(lightHighAlarm2.active)
 		secToggle ? lcd.print('+') : lcd.print(' ');
 	else if(lightLowAlarm2.active)
 		secToggle ? lcd.print('-') : lcd.print(' ');
-	else if(light < lightValueAlarm)
+	else if(light > lightLowValueAlarm)
 		lcd.print('*');
 	else
 		lcd.print(' ');

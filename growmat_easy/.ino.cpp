@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2016-10-11 17:26:12
+//This file has been generated on 2016-10-12 19:51:27
 
 #include "Arduino.h"
 #include <Wire.h>
@@ -18,14 +18,15 @@
 int saveMessage(char msg[], char status) ;
 void readMessage(int index, byte* msg) ;
 void loadEEPROM() ;
-void saveEEPROM() ;
+void saveDefaultEEPROM() ;
 void setup() ;
 bool getInstrumentControl(bool a, byte mode) ;
 void loop() ;
-void callAction() ;
+void uiResetAction() ;
 void uiDraw(char* p_text, int p_row, int p_col, int len) ;
 void uiInstrument(bool instrument, byte mode) ;
 void uiAlarmList() ;
+void uiMeas() ;
 void uiSetClock() ;
 void uiScreen() ;
 void uiInfo() ;
