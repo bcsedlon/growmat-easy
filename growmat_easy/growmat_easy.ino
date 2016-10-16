@@ -1000,7 +1000,7 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(HEATEROFFTEMP_ADDR, heaterOffTemp);
 
     ventMode = 0;
-    ventOnTemp=22.0;
+    ventOnTemp=23.0;
     ventOffTemp=23.0;
     OMEEPROM::write(VENTMODE_ADDR, ventMode);
     OMEEPROM::write(VENTONTEMP_ADDR, ventOnTemp);
