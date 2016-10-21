@@ -11,6 +11,11 @@ const byte KPD_COLS = 4;
 
 #define LEDPIN 13
 
+#define LIGHTCONTROLPIN 9
+#define HEATERCONTROLPIN 10
+#define VENTCONTROLPIN 11
+#define CYCLERCONTROLPIN 12
+
 #define LIGHTPIN A0
 #define DHTPIN 4
 //#define DHTTYPE DHT11   // DHT 11
@@ -344,7 +349,7 @@ public:
 		//if(callDuration)
 		//if(!gsmMode)
 		//	return false;
-
+		/*
 		String text = sim->readSms(21);
 		//TODO TEST
 		//text = "#CODE9999 #00420724095917";
@@ -484,7 +489,7 @@ public:
 					}
 				}
 			}
-		}
+		}*/
 		return false;
 	}
 
@@ -988,14 +993,14 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(LIGHTOFFMIN_ADDR, lightOffMin);
 
     heaterMode = 0;
-    heaterOnTemp=20.0;
+    heaterOnTemp=0.0;
     heaterOffTemp=21.0;
     OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
     OMEEPROM::write(HEATERONTEMP_ADDR, heaterOnTemp);
     OMEEPROM::write(HEATEROFFTEMP_ADDR, heaterOffTemp);
 
     ventMode = 0;
-    ventOnTemp=22.0;
+    ventOnTemp=23.0;
     ventOffTemp=23.0;
     OMEEPROM::write(VENTMODE_ADDR, ventMode);
     OMEEPROM::write(VENTONTEMP_ADDR, ventOnTemp);
@@ -1003,9 +1008,9 @@ void saveDefaultEEPROM() {
 
     cyclerMode = 0;
     cyclerOnMin= 0;
-    cyclerOnSec = 5;
+    cyclerOnSec = 30;
     cyclerOffMin= 0;
-    cyclerOffSec = 5;
+    cyclerOffSec = 30;
     OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
     OMEEPROM::write(CYCLERONMIN_ADDR, cyclerOnMin);
     OMEEPROM::write(CYCLERONSEC_ADDR, cyclerOnSec);
@@ -1047,6 +1052,11 @@ void setup() {
 
 
 	pinMode(LEDPIN, OUTPUT);
+
+	pinMode(LIGHTCONTROLPIN, OUTPUT);
+	pinMode(HEATERCONTROLPIN, OUTPUT);
+	pinMode(VENTCONTROLPIN, OUTPUT);
+	pinMode(CYCLERCONTROLPIN, OUTPUT);
 
 	Serial.begin(9600);
 	while(!Serial);
@@ -1168,6 +1178,7 @@ void infoSerial(Stream* ser) {
 //////////////////////////////////
 unsigned long millisecondsGsm;
 void loop() {
+	gsmMode = 0;
 
 	now = rtc.now();
 	milliseconds = millis();
@@ -1369,8 +1380,12 @@ void loop() {
     }
 
 	//TEST
-	digitalWrite(LEDPIN, cyclerControl);
+	//digitalWrite(LEDPIN, cyclerControl);
 
+	digitalWrite(LIGHTCONTROLPIN, !lightControl);
+	digitalWrite(HEATERCONTROLPIN, !heaterControl);
+	digitalWrite(VENTCONTROLPIN, !ventControl);
+	digitalWrite(CYCLERCONTROLPIN, !cyclerControl);
 	//////////////////////////////////
 	// communication
 	//////////////////////////////////

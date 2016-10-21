@@ -35,7 +35,7 @@
 
 
 #define RX_PIN 10
-#define TX_PIN 11	
+#define TX_PIN 11
 #define RESET_PIN 2   // pin to the reset pin sim800l
 
 #define LED true // used for indicator led, in case that you don want set to false . 
