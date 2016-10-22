@@ -34,27 +34,27 @@
 		<link>
 			<name>core/core</name>
 			<type>2</type>
-			<location>C:/App/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/cores/arduino</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/cores/arduino</location>
 		</link>
 		<link>
 			<name>core/variant</name>
 			<type>2</type>
-			<location>C:/App/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/variants/eightanaloginputs</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/variants/eightanaloginputs</location>
 		</link>
 		<link>
 			<name>libraries/EEPROM</name>
 			<type>2</type>
-			<location>C:/App/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/EEPROM</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/EEPROM</location>
 		</link>
 		<link>
 			<name>libraries/SoftwareSerial</name>
 			<type>2</type>
-			<location>C:/App/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/SoftwareSerial</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/SoftwareSerial</location>
 		</link>
 		<link>
 			<name>libraries/Wire</name>
 			<type>2</type>
-			<location>C:/App/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/Wire</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/libraries/Wire</location>
 		</link>
 	</linkedResources>
 </projectDescription>

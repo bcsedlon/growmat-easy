@@ -13,8 +13,10 @@ const byte KPD_COLS = 4;
 
 #define LIGHTCONTROLPIN 9
 #define HEATERCONTROLPIN 10
-#define VENTCONTROLPIN 11
+#define FANCONTROLPIN 11
 #define CYCLERCONTROLPIN 12
+
+#define EXTPIN 8
 
 #define LIGHTPIN A0
 #define DHTPIN 4
@@ -35,9 +37,9 @@ const byte KPD_COLS = 4;
 #define HEATERONTEMP_ADDR 28
 #define HEATEROFFTEMP_ADDR 32
 
-#define VENTMODE_ADDR 36
-#define VENTONTEMP_ADDR 40
-#define VENTOFFTEMP_ADDR 44
+#define FANMODE_ADDR 36
+#define FANONTEMP_ADDR 40
+#define FANOFFTEMP_ADDR 44
 
 #define CYCLERMODE_ADDR 48
 #define CYCLERONMIN_ADDR 52
@@ -49,6 +51,8 @@ const byte KPD_COLS = 4;
 #define TEMPLOWTEMPALARM_ADDR 72
 #define LIGHTHIGHVALUEALARM_ADDR 76
 #define LIGHTLOWVALUEALARM_ADDR 80
+
+#define EXTERNALMODEALARM_ADDR 84
 
 #define GSMNUMBER_ADDR 100  //16 bytes
 #define GSMCODE_ADDR 116
@@ -65,6 +69,7 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
 #define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
 #define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
+#define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX x"
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
@@ -72,10 +77,12 @@ const byte KPD_COLS = 4;
 #define MESSAGE_TEMPLOW "T-!\n"
 #define MESSAGE_LIGHTHIGH "L+!\n"
 #define MESSAGE_LIGHTLOW "L-!\n"
+#define MESSAGE_EXTERNAL "EX!\n"
 
 #define MESSAGE_TEMP "\nT="
 #define MESSAGE_HUMI "\nH="
 #define MESSAGE_LIGHT "\nL="
+#define MESSAGE_EXT "\nE="
 #define MESSAGE_GSM  "\nGSM="
 
 #define GSMCHECKSMSINTERVAL  60000
@@ -117,9 +124,9 @@ unsigned long uiKeyTime;
 //unsigned long cTime = 0;
 
 // control
-byte lightMode, heaterMode, ventMode, cyclerMode;
-bool lightControl, heaterControl, ventControl, cyclerControl;
-bool lightAuto, heaterAuto, ventAuto, cyclerAuto;
+byte lightMode, heaterMode, fanMode, cyclerMode;
+bool lightControl, heaterControl, fanControl, cyclerControl;
+bool lightAuto, heaterAuto, fanAuto, cyclerAuto;
 unsigned long cyclerDuration = 0; // cycler counter
 //byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
 
@@ -130,14 +137,14 @@ float light;
 // parameters
 unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
 float heaterOnTemp, heaterOffTemp;
-float ventOnTemp, ventOffTemp;
+float fanOnTemp, fanOffTemp;
 unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
 float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
 
-
+byte externalModeAlarm;
 
 
 
@@ -161,19 +168,23 @@ public:
 		b[3] = 0;
 		return String(b);
 	}
-} light2('L'), heater2('H'), vent2('V'), cycler2('C');
+} light2('L'), heater2('H'), fan2('V'), cycler2('C');
 */
 
 class Alarm {
-	unsigned long timeActive;
-	unsigned long timeDeactive;
+
 	//long timeActive;
 	//long timeDeactive;
+	unsigned long timeActive;
+	unsigned long timeDeactive;
 
  public:
+
+
 	// TODO: fix when millis overrun!!!
 	//int delay = 5;
-	int alarmDelay = 5000;
+	int alarmActiveDelay = 5000;
+	int alarmDeactiveDelay = 5000;
 	bool active;
 	bool unAck;
 
@@ -183,7 +194,7 @@ class Alarm {
 				if(!timeActive)
 					timeActive = milliseconds;
 					//timeActive = secondstime;
-				if((timeActive + alarmDelay) < milliseconds) {
+				if((timeActive + alarmActiveDelay) < milliseconds) {
 				//if((timeActive + delay) < secondstime) {
 					active = true;
 					unAck = true;
@@ -204,7 +215,7 @@ class Alarm {
 				if(!timeDeactive)
 					timeDeactive = milliseconds;
 					//timeDeactive = secondstime;
-				if((timeDeactive + alarmDelay) < milliseconds) {
+				if((timeDeactive + alarmDeactiveDelay) < milliseconds) {
 				//if((timeDeactive + delay) < secondstime) {
 					active = false;
 					timeDeactive = 0;
@@ -222,7 +233,7 @@ class Alarm {
 	}
 };
 
-Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2;
+Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2 ;
 
 
 #include <Wire.h>
@@ -344,12 +355,12 @@ public:
 	}
 
 
-	bool proceedSMS() { //byte  *lightMode, byte *heaterMode,byte *ventMode,byte *cyclerMode) {
+	bool proceedSMS() { //byte  *lightMode, byte *heaterMode,byte *fanMode,byte *cyclerMode) {
 
 		//if(callDuration)
 		//if(!gsmMode)
 		//	return false;
-		/*
+
 		String text = sim->readSms(21);
 		//TODO TEST
 		//text = "#CODE9999 #00420724095917";
@@ -401,12 +412,12 @@ public:
 						else if(ch=='0') heaterMode = 1;
 						else if(ch=='1') heaterMode = 2;
 					}
-					pos = text.indexOf("#V");
+					pos = text.indexOf("#F");
 					if(pos > -1) {
 						ch = text.charAt(pos+2);
-						if(ch=='A') ventMode = 0;
-						else if(ch=='0') ventMode = 1;
-						else if(ch=='1') ventMode = 2;
+						if(ch=='A') fanMode = 0;
+						else if(ch=='0') fanMode = 1;
+						else if(ch=='1') fanMode = 2;
 					}
 					pos = text.indexOf("#C");
 					if(pos > -1) {
@@ -436,11 +447,16 @@ public:
 						if(tempLowAlarm2.active) sim->sendSmsText(MESSAGE_TEMPLOW);
 						if(lightHighAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTHIGH);
 						if(lightLowAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTLOW);
+						if(externalAlarm2.active) sim->sendSmsText(MESSAGE_EXTERNAL);
 
 						//sim->sendSmsTextT(10);
 						//sim->sendSmsTextT(0.3);
 						//sim->sendSmsTextT("XD");
 						//sim->sendSmsTextT('!');
+						lightControl = getInstrumentControl(lightAuto, lightMode);
+						heaterControl = getInstrumentControl(heaterAuto, heaterMode);
+						fanControl = getInstrumentControl(fanAuto, fanMode);
+						cyclerControl = getInstrumentControl(cyclerAuto, cyclerMode);
 
 						sim->sendSmsText("L");
 						lightControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
@@ -448,9 +464,9 @@ public:
 						sim->sendSmsText(" H");
 						heaterControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
 						heaterMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText(" V");
-						ventControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
-						ventMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText(" F");
+						fanControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
+						fanMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
 						sim->sendSmsText(" C");
 						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
 						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
@@ -462,6 +478,8 @@ public:
 						sim->sendSmsText(humidity);
 						sim->sendSmsText(MESSAGE_LIGHT);
 						sim->sendSmsText(light);
+						sim->sendSmsText(MESSAGE_EXT);
+						sim->sendSmsText(digitalRead(EXTPIN));
 
 
 						sim->sendSmsText(MESSAGE_GSM);
@@ -476,8 +494,8 @@ public:
 
 						//sim->sendSmsText("\n\n");
 						char msg[MESSAGELENGTH + 1];
-						//for(int i = 0; i< MESSAGESCOUNT; i++) {
-						for(int i = 0; i< 3; i++) {
+						for(int i = 0; i< MESSAGESCOUNT; i++) {
+						//for(int i = 0; i< 3; i++) {
 							sim->sendSmsText("\n");
 							readMessage(i, (byte*)msg);
 							sim->sendSmsText(msg);
@@ -489,7 +507,7 @@ public:
 					}
 				}
 			}
-		}*/
+		}
 		return false;
 	}
 
@@ -593,11 +611,11 @@ public:
 				if(pos > -1) {
 					ch = text.charAt(pos+2);
 					if(ch=='A')
-						*ventMode = 0;
+						*fanMode = 0;
 					else if(ch=='0')
-						*ventMode = 1;
+						*fanMode = 1;
 					else if(ch=='1')
-						*ventMode = 2;
+						*fanMode = 2;
 				}
 				pos = text.indexOf("#C");
 				if(pos > -1) {
@@ -685,9 +703,9 @@ public:
     		if(bitMap[1] == 4) heaterMode=2;
     		if(bitMap[0] == 4) heaterMode=0;
 
-    		if(bitMap[2] == 2) ventMode=1;
-    		if(bitMap[1] == 2) ventMode=2;
-    		if(bitMap[0] == 2) ventMode=0;
+    		if(bitMap[2] == 2) fanMode=1;
+    		if(bitMap[1] == 2) fanMode=2;
+    		if(bitMap[0] == 2) fanMode=0;
 
     		if(bitMap[2] == 1) cyclerMode=1;
     		if(bitMap[1] == 1) cyclerMode=2;
@@ -805,14 +823,14 @@ MENU_VALUE heaterOffTemp_value={ TYPE_FLOAT_10, 99,     0,    MENU_TARGET(&heate
 MENU_ITEM heaterOnTemp_item   ={ {"HEATER ON   [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&heaterOnTemp_value)};
 MENU_ITEM heaterOffTemp_item  ={ {"HEATER OFF  [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&heaterOffTemp_value) };
 
-MENU_SELECT ventMode_select ={ &ventMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
-MENU_VALUE ventMode_value =  { TYPE_SELECT,     0,     0,     MENU_TARGET(&ventMode_select) };
-MENU_ITEM ventMode_item    = { {"VENT CONTROL"}, ITEM_VALUE,  0,        MENU_TARGET(&ventMode_value) };
-MENU_VALUE ventOnTemp_value ={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&ventOnTemp) , VENTONTEMP_ADDR};
-MENU_VALUE ventOffTemp_value={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&ventOffTemp) , VENTOFFTEMP_ADDR};
+MENU_SELECT fanMode_select ={ &fanMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
+MENU_VALUE fanMode_value =  { TYPE_SELECT,     0,     0,     MENU_TARGET(&fanMode_select) };
+MENU_ITEM fanMode_item    = { {"FAN CONTROL"}, ITEM_VALUE,  0,        MENU_TARGET(&fanMode_value) };
+MENU_VALUE fanOnTemp_value ={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOnTemp) , FANONTEMP_ADDR};
+MENU_VALUE fanOffTemp_value={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOffTemp) , FANOFFTEMP_ADDR};
 //                                "123456789ABCDEF"
-MENU_ITEM ventOnTemp_item     ={ {"VENT ON     [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&ventOnTemp_value) };
-MENU_ITEM ventOffTemp_item    ={ {"VENT OFF    [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&ventOffTemp_value) };
+MENU_ITEM fanOnTemp_item     ={ {"FAN ON     [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&fanOnTemp_value) };
+MENU_ITEM fanOffTemp_item    ={ {"FAN OFF    [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&fanOffTemp_value) };
 
 MENU_SELECT cyclerMode_select = { &cyclerMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
 MENU_VALUE cyclerMode_value =   { TYPE_SELECT,     0,     0,     MENU_TARGET(&cyclerMode_select) };
@@ -833,8 +851,8 @@ MENU_ITEM menu_submenu1 = { {"LIGHT->"},  ITEM_MENU,  MENU_SIZE(submenu_list1), 
 MENU_LIST const submenu_list2[] = { &heaterMode_item, &heaterOnTemp_item, &heaterOffTemp_item };
 MENU_ITEM menu_submenu2 = { {"HEATER->"},  ITEM_MENU,  MENU_SIZE(submenu_list2),  MENU_TARGET(&submenu_list2) };
 
-MENU_LIST const submenu_list3[] = { &ventMode_item, &ventOnTemp_item, &ventOffTemp_item };
-MENU_ITEM menu_submenu3 = { {"VENT->"},  ITEM_MENU,  MENU_SIZE(submenu_list3),  MENU_TARGET(&submenu_list3) };
+MENU_LIST const submenu_list3[] = { &fanMode_item, &fanOnTemp_item, &fanOffTemp_item };
+MENU_ITEM menu_submenu3 = { {"FAN->"},  ITEM_MENU,  MENU_SIZE(submenu_list3),  MENU_TARGET(&submenu_list3) };
 
 MENU_LIST const submenu_list4[] = { &cyclerMode_item, &cyclerOnMin_item, &cyclerOnSec_item, &cyclerOffMin_item,  &cyclerOffSec_item};
 MENU_ITEM menu_submenu4 = { {"CYCLER->"},  ITEM_MENU,  MENU_SIZE(submenu_list4),  MENU_TARGET(&submenu_list4) };
@@ -854,7 +872,10 @@ MENU_ITEM lightHighValueAlarm_item   ={ {"LIGH HIGH"},    ITEM_VALUE,  0,       
 MENU_VALUE lightLowValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightLowValueAlarm), LIGHTLOWVALUEALARM_ADDR };
 MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        MENU_TARGET(&lightLowValueAlarm_value) };
 
-MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item};
+MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 1,    -1,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
+MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
+
+MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item, &externalModeAlarm_item};
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -864,13 +885,17 @@ MENU_ITEM gsmCode_item   ={ {"GSM CODE->"},    ITEM_VALUE,  0,        MENU_TARGE
 MENU_LIST const submenu_list6[] = { &gsmMode_item, &gsmCode_item};
 MENU_ITEM menu_submenu6 = { {"GSM->"},  ITEM_MENU,  MENU_SIZE(submenu_list6),  MENU_TARGET(&submenu_list6) };
 
-MENU_ITEM item_testme   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
+
 MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetClock) };
-MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
 MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
 
+
+//MENU_ITEM item_testme   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
+//MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
+
+
 //        List of items in menu level
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5,  &item_alarmList, &item_testme, &item_setClock, &menu_submenu6, &item_info };//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_alarmList,&item_setClock, &menu_submenu6 };// &item_testme, , &item_info//&item_bazme, &item_bakme,
 
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -893,8 +918,8 @@ int saveMessage(char msg[], char status) {
     //Serial.println(msg);
 
     //TODO change to sprintf?
-
-    String m;
+/*
+    String m("");
     m.reserve(16);
     //String m = String();//"0123456789ABCDEF");
     if(now.day() < 10)
@@ -913,6 +938,44 @@ int saveMessage(char msg[], char status) {
       m += '0';
     m += now.minute();
     m.toCharArray(msg, 12);
+*/
+	char* p = msg;
+	if(now.day() < 10)
+	   itoa(0, p++, 10);
+	itoa(now.day(), p, 10);
+	msg[2]='/';
+
+		p = msg + 3;
+	if(now.month() < 10)
+	   itoa(0, p++, 10);
+	itoa(now.month(), p, 10);
+	msg[5]=' ';
+	p = msg + 6;
+	if(now.hour() < 10)
+	   itoa(0, p++, 10);
+	itoa(now.hour(), p, 10);
+	msg[8]=':';
+	p = msg + 9;
+	if(now.minute() < 10)
+	   itoa(0, p++, 10);
+	itoa(now.minute(), p, 10);
+
+//	msg[11]=' ';
+/*
+	    m += now.day();
+	    m += '/';
+	    if(now.month() < 10)
+	      m += '0';
+	    m += now.month();
+	    m += ' ';
+	    if(now.hour() < 10)
+	      m += '0';
+	    m += now.hour();
+	    m += ':';
+	    if(now.minute() < 10)
+	      m += '0';
+	    m += now.minute();
+	*/
     msg[11]= ' ';
     msg[15] = status;
     //---------------
@@ -955,9 +1018,9 @@ void loadEEPROM() {
     read(HEATERONTEMP_ADDR, heaterOnTemp);
     read(HEATEROFFTEMP_ADDR, heaterOffTemp);
 
-    read(VENTMODE_ADDR, ventMode);
-    read(VENTONTEMP_ADDR, ventOnTemp);
-    read(VENTOFFTEMP_ADDR, ventOffTemp);
+    read(FANMODE_ADDR, fanMode);
+    read(FANONTEMP_ADDR, fanOnTemp);
+    read(FANOFFTEMP_ADDR, fanOffTemp);
 
     read(CYCLERMODE_ADDR, cyclerMode);
     read(CYCLERONMIN_ADDR, cyclerOnMin);
@@ -972,6 +1035,8 @@ void loadEEPROM() {
 
     read(GSMMODE_ADDR, gsmMode);
     read(GSMCODE_ADDR, gsmCode);
+
+    read(EXTERNALMODEALARM_ADDR, externalModeAlarm);
 
     for(int i=0; i < 16; i++) {
          OMEEPROM::read(GSMNUMBER_ADDR + i, *(gsmNumber+i));
@@ -999,12 +1064,12 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(HEATERONTEMP_ADDR, heaterOnTemp);
     OMEEPROM::write(HEATEROFFTEMP_ADDR, heaterOffTemp);
 
-    ventMode = 0;
-    ventOnTemp=23.0;
-    ventOffTemp=23.0;
-    OMEEPROM::write(VENTMODE_ADDR, ventMode);
-    OMEEPROM::write(VENTONTEMP_ADDR, ventOnTemp);
-    OMEEPROM::write(VENTOFFTEMP_ADDR, ventOffTemp);
+    fanMode = 0;
+    fanOnTemp=23.0;
+    fanOffTemp=23.0;
+    OMEEPROM::write(FANMODE_ADDR, fanMode);
+    OMEEPROM::write(FANONTEMP_ADDR, fanOnTemp);
+    OMEEPROM::write(FANOFFTEMP_ADDR, fanOffTemp);
 
     cyclerMode = 0;
     cyclerOnMin= 0;
@@ -1041,6 +1106,9 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(GSMMODE_ADDR, gsmMode);
     OMEEPROM::write(GSMCODE_ADDR, gsmCode);
 
+    externalModeAlarm = 0;
+    OMEEPROM::write(EXTERNALMODEALARM_ADDR, externalModeAlarm);
+
 }
 
 //////////////////////////////////
@@ -1050,12 +1118,15 @@ void setup() {
 
 
 
+	pinMode(EXTPIN, INPUT);
+	digitalWrite(EXTPIN, HIGH);
+	externalAlarm2.alarmActiveDelay = 0;
 
 	pinMode(LEDPIN, OUTPUT);
 
 	pinMode(LIGHTCONTROLPIN, OUTPUT);
 	pinMode(HEATERCONTROLPIN, OUTPUT);
-	pinMode(VENTCONTROLPIN, OUTPUT);
+	pinMode(FANCONTROLPIN, OUTPUT);
 	pinMode(CYCLERCONTROLPIN, OUTPUT);
 
 	Serial.begin(9600);
@@ -1072,7 +1143,7 @@ void setup() {
 	else
 		saveDefaultEEPROM();
 
-	//kpd.addEventListener(keypadEvent);
+	//kpd.addEfanListener(keypadEfan);
 	Wire.begin( );
 	sim800l.begin();
 	kpd.begin( makeKeymap(keys) );
@@ -1140,9 +1211,9 @@ void infoSerial(Stream* ser) {
   	ser->print(" HEATER");
   	heaterControl ? ser->print('1'):ser->print('0');
   	heaterMode ? ser->print('M'):ser->print('A');
-  	ser->print(" VENT");
-  	ventControl ? ser->print('1'):ser->print('0');
-  	ventMode ? ser->print('M'):ser->print('A');
+  	ser->print(" FAN");
+  	fanControl ? ser->print('1'):ser->print('0');
+  	fanMode ? ser->print('M'):ser->print('A');
   	ser->print(" CYCLER");
   	cyclerControl ? ser->print('1'):ser->print('0');
   	cyclerMode ? ser->print('M'):ser->print('A');
@@ -1178,7 +1249,7 @@ void infoSerial(Stream* ser) {
 //////////////////////////////////
 unsigned long millisecondsGsm;
 void loop() {
-	gsmMode = 0;
+	//gsmMode = 0;
 
 	now = rtc.now();
 	milliseconds = millis();
@@ -1208,7 +1279,7 @@ void loop() {
 			if(!gsmMgr.millisecondsCall) {
 				//Serial.println("SMS CHECK");
 				millisecondsGsm = milliseconds;
-				gsmMgr.proceedSMS();//&lightMode, &heaterMode, &ventMode, &cyclerMode);
+				gsmMgr.proceedSMS();//&lightMode, &heaterMode, &fanMode, &cyclerMode);
 			}
 		}
 	}
@@ -1290,7 +1361,7 @@ void loop() {
 	if(millis() > (gsmTime + 60000)) {
 		gsmTime = millis();
 		//TODO remmove parametres, use global?
-		gsmMgr.proceedSMS();//&lightMode, &heaterMode, &ventMode, &cyclerMode);
+		gsmMgr.proceedSMS();//&lightMode, &heaterMode, &fanMode, &cyclerMode);
 	}
 	*/
 
@@ -1332,11 +1403,11 @@ void loop() {
     	heaterAuto = false;
     heaterControl = getInstrumentControl(heaterAuto, heaterMode);
 
-    if(temperature > ventOnTemp)
-    	ventAuto = true;
-    if(temperature < ventOffTemp)
-    	ventAuto = false;
-    ventControl = getInstrumentControl(ventAuto, ventMode);
+    if(temperature > fanOnTemp)
+    	fanAuto = true;
+    if(temperature < fanOffTemp)
+    	fanAuto = false;
+    fanControl = getInstrumentControl(fanAuto, fanMode);
 
 	if(cyclerAuto && (cyclerDuration >= (cyclerOnSec + cyclerOnMin * 60))) {
 		cyclerDuration = 0;
@@ -1372,11 +1443,31 @@ void loop() {
 	if(lightHighAlarm2.deactivate(lightControl || (light < lightHighValueAlarm - lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
 
+	byte externalAlarm = digitalRead(EXTPIN);
+	if(externalModeAlarm == 0) {
+		// alarm in 0
+		externalAlarm = !externalAlarm;
+	}
+	else if (externalModeAlarm == 1) {
+		// alarm in 1
+		//externalAlarm = externalAlarm;
+	}
+	else {
+		// no alarm
+		externalAlarm = 0;
+	}
+
+	if(externalAlarm2.activate(externalAlarm))
+		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_ON);
+	if(externalAlarm2.deactivate(!externalAlarm))
+		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_OFF);
+
 	if(kpd.getKeys()) {
 		tempHighAlarm2.ack();
 		tempLowAlarm2.ack();
 		lightHighAlarm2.ack();
 		lightLowAlarm2.ack();
+		externalAlarm2.ack();
     }
 
 	//TEST
@@ -1384,7 +1475,7 @@ void loop() {
 
 	digitalWrite(LIGHTCONTROLPIN, !lightControl);
 	digitalWrite(HEATERCONTROLPIN, !heaterControl);
-	digitalWrite(VENTCONTROLPIN, !ventControl);
+	digitalWrite(FANCONTROLPIN, !fanControl);
 	digitalWrite(CYCLERCONTROLPIN, !cyclerControl);
 	//////////////////////////////////
 	// communication
@@ -1402,6 +1493,8 @@ void loop() {
   			Serial.print(humidity);
   			Serial.print(MESSAGE_LIGHT);
   			Serial.print(light);
+  			Serial.print(MESSAGE_EXT);
+  			Serial.print(digitalRead(EXTPIN));
   			Serial.println();
 
   			//infoSerial((Stream*)&Serial);
@@ -1420,9 +1513,9 @@ void loop() {
   			Serial.print(" H");
   			heaterControl ? Serial.print('1'):Serial.print('0');
   			heaterMode ? Serial.print('M'):Serial.print('A');
-  			Serial.print(" V");
-  			ventControl ? Serial.print('1'):Serial.print('0');
-  			ventMode ? Serial.print('M'):Serial.print('A');
+  			Serial.print(" F");
+  			fanControl ? Serial.print('1'):Serial.print('0');
+  			fanMode ? Serial.print('M'):Serial.print('A');
   			Serial.print(" C");
   			cyclerControl ? Serial.print('1'):Serial.print('0');
   			cyclerMode ? Serial.print('M'):Serial.print('A');
@@ -1577,6 +1670,9 @@ void uiScreen() {
 		lcd.clear();
 		lcd.setCursor(0, 0);
 		lcd.print(light);
+
+		lcd.setCursor(0, 1);
+		lcd.print(digitalRead(EXTPIN));
 		/*
 		if(abs(temperature) < 10)
 			lcd.print('0');
@@ -1741,7 +1837,7 @@ void uiInfo() {
 
 void uiMain() {
 
-	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck) {
+	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
 	}
 	else {
@@ -1773,7 +1869,11 @@ void uiMain() {
 	if (now.hour() < 10)
 		lcd.print('0');
 	lcd.print(now.hour(), DEC);
-	secToggle ? lcd.print(':') : lcd.print(' ');
+	if(secToggle) {
+		externalAlarm2.active ? lcd.print('!') : lcd.print(':');
+	}
+	else
+		lcd.print(' ');
 	if (now.minute() < 10)
 		lcd.print('0');
 	lcd.print(now.minute(), DEC);
@@ -1794,7 +1894,7 @@ void uiMain() {
 	lcd.print(" ");
 	lcd.print(heater2.getString());
 	lcd.print(" ");
-	lcd.print(vent2.getString());
+	lcd.print(fan2.getString());
 	lcd.print(" ");
 	lcd.print(cycler2.getString());
 	*/
@@ -1813,8 +1913,8 @@ void uiMain() {
 	uiInstrument(lightControl, lightMode);
 	lcd.print(" H");
 	uiInstrument(heaterControl, heaterMode);
-	lcd.print(" V");
-	uiInstrument(ventControl, ventMode);
+	lcd.print(" F");
+	uiInstrument(fanControl, fanMode);
 	lcd.print(" C");
 	uiInstrument(cyclerControl, cyclerMode);
 
