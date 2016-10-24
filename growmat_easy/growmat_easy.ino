@@ -318,16 +318,18 @@ public:
 		gsmCode = gsmCode_c;
 		gsmNumber = gsmNumber_c;
 	}
-
+	/*
 	bool update() {
 		//sim->readSerial();
 		return false;
 	}
+	*/
 
 	void call(){
 		//if(!callDuration) {
 		if(!millisecondsCall && gsmMode > 1) {
-			Serial.println(F("CALLING"));
+			//Serial.println(F("CALL"));
+			Serial.println('C');
 			sim->callNumber(gsmNumber);
 			//callDuration= millis();
 			//secondsCall = secondstime;
@@ -342,7 +344,8 @@ public:
 		//if(callDuration && (callDuration + 30000 < millis())){
 		//if(secondsCall && (secondsCall + 30 < secondstime)){
 		if(millisecondsCall && (millisecondsCall + GSMCALLDURATION < milliseconds)){
-			Serial.println(F("HANG UP"));
+			//Serial.println(F("HANG"));
+			Serial.println('H');
 			sim->hangoffCall();
 			//callDuration = 0;
 			millisecondsCall = 0;
@@ -387,10 +390,10 @@ public:
 						}
 					}
 
-					pos = text.indexOf("#MODE");
+					pos = text.indexOf("#M");
 					if(pos > -1) {
 						// save new gsm number
-						gsmMode = text.charAt(pos + 5) - 48;
+						gsmMode = text.charAt(pos + 2) - 48;
 						OMEEPROM::write(GSMMODE_ADDR, gsmMode);
 					}
 
@@ -404,6 +407,7 @@ public:
 						if(ch=='A') lightMode = 0;
 						else if(ch=='0') lightMode = 1;
 						else if(ch=='1') lightMode = 2;
+						OMEEPROM::write(LIGHTMODE_ADDR, lightMode);
 					}
 					pos = text.indexOf("#H");
 					if(pos > -1) {
@@ -411,6 +415,7 @@ public:
 						if(ch=='A') heaterMode = 0;
 						else if(ch=='0') heaterMode = 1;
 						else if(ch=='1') heaterMode = 2;
+						OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
 					}
 					pos = text.indexOf("#F");
 					if(pos > -1) {
@@ -418,6 +423,7 @@ public:
 						if(ch=='A') fanMode = 0;
 						else if(ch=='0') fanMode = 1;
 						else if(ch=='1') fanMode = 2;
+						OMEEPROM::write(FANMODE_ADDR, fanMode);
 					}
 					pos = text.indexOf("#C");
 					if(pos > -1) {
@@ -425,6 +431,7 @@ public:
 						if(ch=='A') cyclerMode = 0;
 						else if(ch=='0') cyclerMode = 1;
 						else if(ch=='1') cyclerMode = 2;
+						OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
 					}
 
 					pos = text.indexOf("#?");
@@ -872,7 +879,7 @@ MENU_ITEM lightHighValueAlarm_item   ={ {"LIGH HIGH"},    ITEM_VALUE,  0,       
 MENU_VALUE lightLowValueAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightLowValueAlarm), LIGHTLOWVALUEALARM_ADDR };
 MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        MENU_TARGET(&lightLowValueAlarm_value) };
 
-MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 1,    -1,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
+MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 2,    0,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
 MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
 
 MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item, &externalModeAlarm_item};
@@ -1131,13 +1138,13 @@ void setup() {
 
 	Serial.begin(9600);
 	while(!Serial);
-
+	/*
 	Serial.println();
 	Serial.print(TEXT_GROWMATEASY);
 	Serial.print(' ');
 	Serial.println(VERSION);
 	//Serial.println(F("##############"));
-
+	*/
 	if( OMEEPROM::saved() )
 		loadEEPROM();
 	else
@@ -1331,7 +1338,7 @@ void loop() {
 	//////////////////////////////////
 	// gsm
 	//////////////////////////////////
-	gsmMgr.update();
+	//gsmMgr.update();
 	gsmMgr.updateCall();
 
 
@@ -1448,14 +1455,15 @@ void loop() {
 		// alarm in 0
 		externalAlarm = !externalAlarm;
 	}
-	else if (externalModeAlarm == 1) {
+	//else if (externalModeAlarm == 1) {
 		// alarm in 1
 		//externalAlarm = externalAlarm;
-	}
-	else {
+	//}
+	//else {
 		// no alarm
+	if(externalModeAlarm == 2)
 		externalAlarm = 0;
-	}
+	//}
 
 	if(externalAlarm2.activate(externalAlarm))
 		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_ON);
@@ -1546,7 +1554,7 @@ void loop() {
    		}
   	}
 }
-
+/*
 void uiResetAction() {
 
 	//TEST save default values
@@ -1555,21 +1563,16 @@ void uiResetAction() {
 	lcd.clear();
 	lcd.setCursor(0, 0);
 	lcd.print(F("RESET OK"));
-	/*
-	lcd.setCursor(1, 1);
-	lcd.print(gsmNumber);
 
-	sim800l.callNumber(gsmNumber);
-	*/
-	/*
-  	while(Sim800l.getCallStatus() > 0) {
-    	lcd.setCursor(0, 1);
-    	lcd.print(Sim800l.getCallStatus(), DEC)    ;
-  	}
-	*/
+	//lcd.setCursor(1, 1);
+	//lcd.print(gsmNumber);
+
+	//sim800l.callNumber(gsmNumber);
+
+
     //error=Sim800l.sendSms(number,text);
 }
-
+*/
 void uiDraw(char* p_text, int p_row, int p_col, int len) {
 	lcd.backlight();
 	lcd.setCursor(p_col, p_row);
@@ -1823,6 +1826,7 @@ void uiScreen() {
 	}
 }
 
+/*
 void uiInfo() {
 	//"123456789ABCDEF"
 	lcd.clear();
@@ -1832,7 +1836,7 @@ void uiInfo() {
 	lcd.print(F("GMAIL.COM"));
 	Menu.enable(false);
 }
-
+*/
 
 
 void uiMain() {
