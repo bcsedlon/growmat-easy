@@ -17,9 +17,10 @@ const byte KPD_COLS = 4;
 #define CYCLERCONTROLPIN 12
 
 #define EXTPIN 8
+#define EXTANAPIN A2
 
 #define LIGHTPIN A0
-#define DHTPIN 4
+#define DHTPIN 6
 //#define DHTTYPE DHT11   // DHT 11
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
@@ -133,6 +134,7 @@ unsigned long cyclerDuration = 0; // cycler counter
 // inputs
 float temperature, humidity, heatIndex;
 float light;
+float extana;
 
 // parameters
 unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
@@ -284,11 +286,11 @@ public:
 	}
 
 	bool Sim800l2::sendSmsEnd(){
-		//printSerial("\r");
+		printSerial("\r");
 		delay(100);
 		printSerial((char)26);
 		_buffer=_readSerial();
-		//expect CMGS:xxx   , where xxx is a number,for the sending sms.
+		//expect CMGS:xxx   , where xxx is a number,for the g sms.
 		if (((_buffer.indexOf("CMGS") ) != -1 ) )
 			return true;
 		else
@@ -363,10 +365,12 @@ public:
 		//if(callDuration)
 		//if(!gsmMode)
 		//	return false;
-
+		//Serial.println('R');
 		String text = sim->readSms(21);
 		//TODO TEST
 		//text = "#CODE9999 #00420724095917";
+		//Serial.print("SMS");
+		//Serial.print(sim->sendSms(gsmNumber, "TEST"));
 
 		if(text != "") {
 			sim->delAllSms();
@@ -384,7 +388,10 @@ public:
 					pos = text.indexOf("#00");
 					if(pos > -1) {
 						// save new gsm number
+						//text.substring(pos+1).toCharArray(gsmNumber, text.indexOf("", pos), 0);
 						text.substring(pos+1).toCharArray(gsmNumber, 16, 0);
+						gsmNumber[14] = 0;
+
 						for(int i=0; i < 16; i++) {
 							OMEEPROM::write(GSMNUMBER_ADDR + i, gsmNumber[i]);
 						}
@@ -407,7 +414,7 @@ public:
 						if(ch=='A') lightMode = 0;
 						else if(ch=='0') lightMode = 1;
 						else if(ch=='1') lightMode = 2;
-						OMEEPROM::write(LIGHTMODE_ADDR, lightMode);
+						//OMEEPROM::write(LIGHTMODE_ADDR, lightMode);
 					}
 					pos = text.indexOf("#H");
 					if(pos > -1) {
@@ -415,7 +422,7 @@ public:
 						if(ch=='A') heaterMode = 0;
 						else if(ch=='0') heaterMode = 1;
 						else if(ch=='1') heaterMode = 2;
-						OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
+						//OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
 					}
 					pos = text.indexOf("#F");
 					if(pos > -1) {
@@ -423,7 +430,7 @@ public:
 						if(ch=='A') fanMode = 0;
 						else if(ch=='0') fanMode = 1;
 						else if(ch=='1') fanMode = 2;
-						OMEEPROM::write(FANMODE_ADDR, fanMode);
+						//OMEEPROM::write(FANMODE_ADDR, fanMode);
 					}
 					pos = text.indexOf("#C");
 					if(pos > -1) {
@@ -431,7 +438,7 @@ public:
 						if(ch=='A') cyclerMode = 0;
 						else if(ch=='0') cyclerMode = 1;
 						else if(ch=='1') cyclerMode = 2;
-						OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
+						//OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
 					}
 
 					pos = text.indexOf("#?");
@@ -440,9 +447,9 @@ public:
 						//TODO
 						//char msg[256];// = "GROWMAT INFO";
 						//bool r = sim->sendSms(gsmNumber, msg);
-						Serial.println(F("SENDING SMS"));
+						Serial.println(F("SMS"));
 
-						//sim->sendSms(gsmNumber, "TEST");
+						//Serial.print(sim->sendSms(gsmNumber, "TEST"));
 
 						sim->sendSmsBegin(gsmNumber);
 						sim->sendSmsText("\n");
@@ -894,7 +901,7 @@ MENU_ITEM menu_submenu6 = { {"GSM->"},  ITEM_MENU,  MENU_SIZE(submenu_list6),  M
 
 
 MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetClock) };
-MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
+//MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
 
 
 //MENU_ITEM item_testme   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
@@ -902,7 +909,7 @@ MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TA
 
 
 //        List of items in menu level
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_alarmList,&item_setClock, &menu_submenu6 };// &item_testme, , &item_info//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6 };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
 
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -1127,7 +1134,7 @@ void setup() {
 
 	pinMode(EXTPIN, INPUT);
 	digitalWrite(EXTPIN, HIGH);
-	externalAlarm2.alarmActiveDelay = 0;
+	//externalAlarm2.alarmActiveDelay = 0;
 
 	pinMode(LEDPIN, OUTPUT);
 
@@ -1255,6 +1262,7 @@ void infoSerial(Stream* ser) {
 // main loop
 //////////////////////////////////
 unsigned long millisecondsGsm;
+
 void loop() {
 	//gsmMode = 0;
 
@@ -1388,7 +1396,9 @@ void loop() {
   	light = max(0, light);
 	light = min(99, light);
 
-
+	for(int i = 0; i < 100; i++)
+		extana += analogRead(EXTANAPIN);
+	extana /=100;
 	//////////////////////////////////
 	// outputs
 	//////////////////////////////////
@@ -1397,7 +1407,7 @@ void loop() {
   	unsigned int lOff =lightOffHour * 60 + lightOffMin;
 
     if(lOn < lOff) {
-    	lightAuto = ((lOn < l) && (l < lOff)) ? true : false;
+    	lightAuto = ((lOn <= l) && (l < lOff)) ? true : false;
     }
     else {
     	lightAuto = ((lOn > l) && (l  > lOff)) ? false : true;
@@ -1450,7 +1460,7 @@ void loop() {
 	if(lightHighAlarm2.deactivate(lightControl || (light < lightHighValueAlarm - lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
 
-	byte externalAlarm = digitalRead(EXTPIN);
+	byte externalAlarm = extana > 500; //digitalRead(EXTPIN);
 	if(externalModeAlarm == 0) {
 		// alarm in 0
 		externalAlarm = !externalAlarm;
@@ -1502,7 +1512,8 @@ void loop() {
   			Serial.print(MESSAGE_LIGHT);
   			Serial.print(light);
   			Serial.print(MESSAGE_EXT);
-  			Serial.print(digitalRead(EXTPIN));
+  			//Serial.print(digitalRead(EXTPIN));
+  			Serial.print(extana);
   			Serial.println();
 
   			//infoSerial((Stream*)&Serial);
@@ -1675,7 +1686,8 @@ void uiScreen() {
 		lcd.print(light);
 
 		lcd.setCursor(0, 1);
-		lcd.print(digitalRead(EXTPIN));
+		//lcd.print(digitalRead(EXTPIN));
+		lcd.print(extana);
 		/*
 		if(abs(temperature) < 10)
 			lcd.print('0');

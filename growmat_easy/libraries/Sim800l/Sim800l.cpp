@@ -197,7 +197,7 @@ bool Sim800l::answerCall(){
 void  Sim800l::callNumber(char* number){
   SIM.print (F("ATD"));
   SIM.print (number);
-  SIM.print (F("\r\n"));
+  SIM.print (F(";\r\n"));
 }
 
 
@@ -236,15 +236,18 @@ bool Sim800l::sendSms(char* number,char* text){
 
     SIM.print (F("AT+CMGF=1\r")); //set sms to text mode  
     _buffer=_readSerial();
+    //Serial.println(_buffer);
     SIM.print (F("AT+CMGS=\""));  // command to send sms
     SIM.print (number);           
     SIM.print(F("\"\r"));       
-    _buffer=_readSerial(); 
+    _buffer=_readSerial();
+    //Serial.println(_buffer);
     SIM.print (text);
     SIM.print ("\r"); 
     delay(100);
     SIM.print((char)26);
     _buffer=_readSerial();
+    //Serial.println(_buffer);
     //expect CMGS:xxx   , where xxx is a number,for the sending sms.
     if (((_buffer.indexOf("CMGS") ) != -1 ) ){
       return true;
