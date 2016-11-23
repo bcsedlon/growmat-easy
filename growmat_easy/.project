@@ -39,7 +39,7 @@
 		<link>
 			<name>core/variant</name>
 			<type>2</type>
-			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/variants/eightanaloginputs</location>
+			<location>C:/Users/pravoj01/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.14/variants/mega</location>
 		</link>
 		<link>
 			<name>libraries/EEPROM</name>

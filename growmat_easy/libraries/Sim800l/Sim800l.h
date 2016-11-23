@@ -34,8 +34,8 @@
 #include "Arduino.h"
 
 
-#define RX_PIN 2
-#define TX_PIN 3
+#define RX_PIN 10	//2
+#define TX_PIN 11	//3
 #define RESET_PIN 4   // pin to the reset pin sim800l
 
 #define LED true // used for indicator led, in case that you don want set to false . 

@@ -12,8 +12,8 @@ const byte KPD_COLS = 4;
 #define LEDPIN 13
 
 #define LIGHTCONTROLPIN 9
-#define HEATERCONTROLPIN 10
-#define FANCONTROLPIN 11
+#define HEATERCONTROLPIN 13 //10
+#define FANCONTROLPIN 14 //11
 #define CYCLERCONTROLPIN 12
 
 #define EXTPIN 8
@@ -21,9 +21,13 @@ const byte KPD_COLS = 4;
 
 #define LIGHTPIN A0
 #define DHTPIN 6
-//#define DHTTYPE DHT11   // DHT 11
-#define DHTTYPE DHT22   // DHT 22  (AM2302)
+#define DHTTYPE DHT11   // DHT 11
+//#define DHTTYPE DHT22   // DHT 22  (AM2302)
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
+
+#define PHANAPIN A1
+#define SAMPLES 10
+
 
 #define DS3231_I2C_ADDRESS 0x68
 
@@ -53,14 +57,23 @@ const byte KPD_COLS = 4;
 #define LIGHTHIGHVALUEALARM_ADDR 76
 #define LIGHTLOWVALUEALARM_ADDR 80
 
-#define EXTERNALMODEALARM_ADDR 84
+#define PHHIGHPHALARM_ADDR 84
+#define PHLOWPHALARM_ADDR 88
+#define PHLOWX_ADDR 92
+#define PHHIGHX_ADDR 96
+#define PHLOWY_ADDR 100
+#define PHHIGHY_ADDR 104
 
-#define GSMNUMBER_ADDR 100  //16 bytes
-#define GSMCODE_ADDR 116
-#define GSMMODE_ADDR 118
 
-#define MESSAGESOFFSET_ADDR 120
-#define MESSAGES_ADDR 124
+
+#define EXTERNALMODEALARM_ADDR 96
+
+#define GSMNUMBER_ADDR 200  //16 bytes
+#define GSMCODE_ADDR 216
+#define GSMMODE_ADDR 220
+
+#define MESSAGESOFFSET_ADDR 224
+#define MESSAGES_ADDR 228
 #define MESSAGESCOUNT 8
 #define MESSAGELENGTH 16
 
@@ -132,7 +145,7 @@ unsigned long cyclerDuration = 0; // cycler counter
 //byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
 
 // inputs
-float temperature, humidity, heatIndex;
+float temperature, humidity, heatIndex, ph, ec;
 float light;
 float extana;
 
@@ -141,10 +154,13 @@ unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
 float heaterOnTemp, heaterOffTemp;
 float fanOnTemp, fanOffTemp;
 unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
-float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm;
+float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm, phHighPhAlarm, phLowPhAlarm, ecHighPhAlarm, ecLowPhAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
+
+int phLowX, phHighX;
+float phLowY, phHighY;
 
 byte externalModeAlarm;
 
@@ -235,7 +251,7 @@ class Alarm {
 	}
 };
 
-Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2 ;
+Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2, phHighAlarm2, phLowAlarm2, ecHighAlarm2, ecLowAlarm2;
 
 
 #include <Wire.h>
@@ -878,6 +894,39 @@ MENU_ITEM tempHighTempAlarm_item   ={ {"TEMP HIGH   [C]"},    ITEM_VALUE,  0,   
 MENU_VALUE tempLowTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowTempAlarm), TEMPLOWTEMPALARM_ADDR };
 MENU_ITEM tempLowTempAlarm_item   ={ {"TEMP LOW    [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowTempAlarm_value) };
 
+
+
+
+//                               TYPE             MAX    MIN    TARGET
+MENU_VALUE phLowX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phLowX), PHLOWX_ADDR };
+MENU_VALUE phHighX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phHighX), PHHIGHX_ADDR };
+MENU_VALUE phLowY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowY), PHLOWY_ADDR };
+MENU_VALUE phHighY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighY), PHHIGHY_ADDR };
+
+MENU_VALUE phLowPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowPhAlarm), PHLOWPHALARM_ADDR };
+MENU_VALUE phHighPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighPhAlarm), PHHIGHPHALARM_ADDR };
+
+//                                "123456789ABCDEF"
+MENU_ITEM phLowX_item   =   { {"PH LOW X    [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&phLowX_value) };
+MENU_ITEM phHighX_item   =  { {"PH HIGH X   [-]"},    ITEM_VALUE,  0,        MENU_TARGET(&phHighX_value) };
+MENU_ITEM phLowY_item  =    { {"PH LOW Y   [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowY_value) };
+MENU_ITEM phHighY_item   =  { {"PH HIGH Y  [PH]"},   ITEM_VALUE,  0,        MENU_TARGET(&phHighY_value) };
+
+MENU_ITEM phLowPhAlarm_item  =    { {"PH LOW AL  [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowPhAlarm_value) };
+MENU_ITEM phHighPhAlarm_item   =  { {"PH HIGH AL [PH]"},   ITEM_VALUE,  0,        MENU_TARGET(&phHighPhAlarm_value) };
+
+MENU_LIST const submenu_list_ph[] = { &phLowPhAlarm_item, &phHighPhAlarm_item, &phLowX_item, &phLowY_item,  &phHighX_item, &phHighY_item};
+MENU_ITEM menu_submenu_ph = { {"PH->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ph),  MENU_TARGET(&submenu_list_ph) };
+
+
+
+
+
+
+
+
+
+
 //TODO !!!
 
 //                                "123456789ABCDEF"
@@ -904,12 +953,12 @@ MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARG
 //MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
 
 
-//MENU_ITEM item_testme   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
+MENU_ITEM item_reset   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
 //MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
 
 
 //        List of items in menu level
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6 };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &item_reset };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
 
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -1047,6 +1096,13 @@ void loadEEPROM() {
     read(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
     read(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
 
+    read(PHLOWPHALARM_ADDR, phLowPhAlarm);
+    read(PHHIGHPHALARM_ADDR, phHighPhAlarm);
+    read(PHLOWX_ADDR, phLowX);
+    read(PHHIGHX_ADDR, phHighX);
+    read(PHLOWY_ADDR, phLowY);
+    read(PHHIGHY_ADDR, phHighY);
+
     read(GSMMODE_ADDR, gsmMode);
     read(GSMCODE_ADDR, gsmCode);
 
@@ -1104,6 +1160,19 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(TEMPLOWTEMPALARM_ADDR, tempLowTempAlarm);
     OMEEPROM::write(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
     OMEEPROM::write(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
+
+    phLowX = 655;
+    phHighX = 528;
+    phLowY = 4.01;
+    phHighY = 7.00;
+    phLowPhAlarm = 0;
+    phHighPhAlarm = 14;
+    OMEEPROM::write(PHLOWPHALARM_ADDR, phLowPhAlarm);
+    OMEEPROM::write(PHHIGHPHALARM_ADDR, phHighPhAlarm);
+    OMEEPROM::write(PHLOWX_ADDR, phLowX);
+    OMEEPROM::write(PHHIGHX_ADDR, phHighX);
+    OMEEPROM::write(PHLOWY_ADDR, phLowY);
+    OMEEPROM::write(PHHIGHY_ADDR, phHighY);
 
     int iZero = 0;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, iZero);
@@ -1201,6 +1270,25 @@ bool getInstrumentControl(bool a, byte mode) {
 	return false;
 }
 
+double calcPH(double ph) {
+  double phratio = (double)(phLowX - phHighX) / (double)(phHighY - phLowY); //move to setup
+  //ph = getRawValue(PH_INPUTPIN, PH_SAMPLES)
+  ph = ((double)phHighX - ph) / phratio + (double)phHighY;    // Calculate PH
+  return ph;
+}
+
+double calcPHTemp(double temp) {
+  //temp = getRawValue(PHTEMP_INPUTPIN, PH_SAMPLES)
+  return temp / 3.4  * (5 / 10.24);   // LM35 connect to CA3140 for amplify 3 time
+}
+
+double analogRead(int pin, int samples){
+  int result = 0;
+  for(int i=0; i<samples; i++){
+    result += analogRead(pin);
+  }
+  return (double)(result / samples);
+}
 /*
 void getInstrumentString(bool a, byte mode, char* b) {
 	//TODO is it safe?
@@ -1389,7 +1477,9 @@ void loop() {
 	h0 = dht.readHumidity();
 	if(!isnan(t0)) temperature = t0;
 	if(!isnan(h0)) humidity = h0;
-  	for(int i = 0; i < 100; i++)
+
+	/*
+	for(int i = 0; i < 100; i++)
   		light += analogRead((unsigned char)LIGHTPIN) / 10;
   	light /= 100;
   	light = 100 - light;
@@ -1399,6 +1489,13 @@ void loop() {
 	for(int i = 0; i < 100; i++)
 		extana += analogRead(EXTANAPIN);
 	extana /=100;
+	*/
+
+	light = analogRead(LIGHTPIN, SAMPLES) / 10.23;
+	extana = analogRead(EXTANAPIN, SAMPLES) / 10.23;
+	ph = calcPH(analogRead(PHANAPIN, SAMPLES));
+	//ph = analogRead(PHANAPIN, SAMPLES);
+
 	//////////////////////////////////
 	// outputs
 	//////////////////////////////////
@@ -1460,7 +1557,7 @@ void loop() {
 	if(lightHighAlarm2.deactivate(lightControl || (light < lightHighValueAlarm - lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
 
-	byte externalAlarm = extana > 500; //digitalRead(EXTPIN);
+	byte externalAlarm = extana > 50; //digitalRead(EXTPIN);
 	if(externalModeAlarm == 0) {
 		// alarm in 0
 		externalAlarm = !externalAlarm;
@@ -1565,7 +1662,7 @@ void loop() {
    		}
   	}
 }
-/*
+
 void uiResetAction() {
 
 	//TEST save default values
@@ -1575,6 +1672,8 @@ void uiResetAction() {
 	lcd.setCursor(0, 0);
 	lcd.print(F("RESET OK"));
 
+	delay(1000);
+
 	//lcd.setCursor(1, 1);
 	//lcd.print(gsmNumber);
 
@@ -1583,7 +1682,7 @@ void uiResetAction() {
 
     //error=Sim800l.sendSms(number,text);
 }
-*/
+
 void uiDraw(char* p_text, int p_row, int p_col, int len) {
 	lcd.backlight();
 	lcd.setCursor(p_col, p_row);
@@ -1683,11 +1782,19 @@ void uiScreen() {
 	if(uiState == UISTATE_MEAS) {
 		lcd.clear();
 		lcd.setCursor(0, 0);
+		lcd.print(F("l "));
 		lcd.print(light);
 
+		lcd.setCursor(8, 0);
+		lcd.print(F("ph"));
+		lcd.print(ph);
+
 		lcd.setCursor(0, 1);
+		lcd.print(F("ex"));
 		//lcd.print(digitalRead(EXTPIN));
 		lcd.print(extana);
+
+		delay(250);
 		/*
 		if(abs(temperature) < 10)
 			lcd.print('0');
