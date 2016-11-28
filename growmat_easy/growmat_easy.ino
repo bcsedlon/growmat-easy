@@ -1,6 +1,21 @@
 #define TEXT_GROWMATEASY "GROWMAT EASY"
 #define VERSION 1
 
+#include "libraries/RF433/RF433.h"
+#define RFRXPIN A3
+#define RFTXPIN 4
+// MCE07
+//TODO: fix Hon, Foff
+byte rf1off[] = {11,30,3,4,3,3,3,11,3,11,3,11,3,3,3,4,3,11,3,3,3,4,3,3,3,4,3,3,3,4,3,10,4,3,3,11,3,11,3,3,4,3,3,4,3,10,3,11,3,4,3,11,3,10,4,10,3,11,3,11,3,11,3,3,3,11,3,4,3,11,3,10,3,11,3,11,3,3,4,3,3,3,4,188,3,3,3,3,30,29,4,3,3,3,4,10,3,11,3,11,3,3,4,3,3,11,3,3,4,3,3,3,4,3,3,3,4,3,3,11,3,4,3,10,4};
+byte rf1on[] = {5,3,3,3,29,30,3,4,3,3,3,11,3,11,3,10,4,3,3,3,4,10,4,3,3,3,4,3,3,3,4,3,3,4,3,10,3,4,3,11,3,11,3,3,3,4,3,3,3,11,3,11,3,4,3,10,3,11,3,11,3,11,3,11,3,10,3,4,3,11,3,11,3,3,3,4,3,3,3,4,3,10,4,10,3,11,3,90,3,3,4,3,29,30,3,3,3,4,3,11,3,10,4,10,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3};
+byte rf2off[] = {16,29,3,4,3,3,3,11,3,11,3,11,3,3,3,4,3,11,3,3,3,4,3,3,3,4,3,3,3,4,3,11,3,3,3,11,3,11,3,4,2,4,3,3,3,11,3,11,3,4,3,11,3,10,3,11,3,11,3,11,3,11,3,3,3,11,3,11,3,3,3,11,3,11,3,3,3,11,3,4,3,3,3,188,4,3,3,3,29,30,3,4,3,3,3,11,3,11,3,10,4,3,3,3,4,10,4,3,3,3,4,3,3,3,3,4,3,4,3,10,3,4,3,11,3};
+byte rf2on[] = {1,3,3,4,3,11,2,11,3,4,3,11,3,11,3,10,4,10,3,11,3,11,3,3,3,11,3,4,3,11,3,3,3,4,3,11,3,3,3,11,3,11,3,188,3,3,3,3,30,29,4,3,3,3,3,11,3,11,3,11,3,3,3,4,3,11,3,3,3,4,3,3,3,4,3,3,3,4,3,11,3,4,3,10,3,11,3,4,3,3,3,4,3,11,3,10,3,4,3,11,3,11,3,11,2,11,3,11,3,11,3,3,3,11,3,4,3,11,3,3,3,4,3,11,2};
+byte rf3off[] = {1,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,11,3,3,3,4,3,3,3,11,3,11,3,3,3,11,3,11,3,11,3,11,3,10,3,11,3,4,3,11,3,3,3,4,3,10,3,11,3,11,3,11,3,3,3,4,3,90,3,3,3,3,30,30,3,3,3,4,3,10,3,11,3,11,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,10,3,4,3,3,3,4,3,11,3,11,2,4,3,11,3,11,3};
+byte rf3on[] = {5,2,4,3,29,30,3,3,3,4,3,11,3,10,3,11,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,11,3,3,3,4,3,3,3,11,3,11,3,3,3,11,3,11,3,11,3,11,3,10,3,11,3,4,3,11,3,11,3,10,3,4,3,3,3,4,3,3,3,11,3,11,3,90,3,3,4,3,29,30,3,3,3,4,3,11,3,10,4,10,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3};
+byte rf4off[] = {4,11,3,4,3,10,3,11,3,11,3,11,3,11,3,10,3,4,3,11,3,11,3,10,3,4,3,11,3,3,3,4,3,11,3,3,3,90,3,3,4,3,29,30,3,3,3,4,3,11,3,10,3,11,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,10,3,4,3,4,3,3,3,11,3,11,3,3,3,11,3,11,3,11,3,11,2,11,3,11,3,3,4,11,3,10,3,11,3,4,3,10,3,4,3,3,3,11,3,4,3};
+byte rf4on[] = {4,4,3,10,4,89,4,3,3,3,29,30,3,4,3,3,3,11,3,11,3,10,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,11,3,3,3,4,3,3,3,11,3,11,3,3,3,11,3,11,3,11,3,11,2,11,3,11,3,3,4,11,3,3,3,4,3,10,3,4,3,11,3,10,3,4,3,11,3,188,3,3,3,3,30,29,3,4,3,3,3,11,3,11,3,10,4,3,3,3,4,11,3,3,3,4,3,3,3,4,3};
+
+
 #define LCD_I2CADDR 0x20
 const byte LCD_ROWS = 2;
 const byte LCD_COLS = 16;
@@ -24,6 +39,9 @@ const byte KPD_COLS = 4;
 #define DHTTYPE DHT11   // DHT 11
 //#define DHTTYPE DHT22   // DHT 22  (AM2302)
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
+
+#define ECINPUTPIN 2
+#define ECENABLEPIN 3
 
 #define PHANAPIN A1
 #define SAMPLES 10
@@ -64,9 +82,22 @@ const byte KPD_COLS = 4;
 #define PHLOWY_ADDR 100
 #define PHHIGHY_ADDR 104
 
+#define ECHIGHECALARM_ADDR 108
+#define ECLOWECALARM_ADDR 112
+#define ECLOWX_ADDR 116
+#define ECHIGHX_ADDR 120
+#define ECLOWY_ADDR 124
+#define ECHIGHY_ADDR 128
 
 
-#define EXTERNALMODEALARM_ADDR 96
+#define HEATERONTEMPNIGHT_ADDR 132
+#define HEATEROFFTEMPNIGHT_ADDR 136
+#define FANONTEMPNIGHT_ADDR 140
+#define FANOFFTEMPNIGHT_ADDR 144
+#define TEMPHIGHTEMPNIGHTALARM_ADDR 148
+#define TEMPLOWTEMPNIGHTALARM_ADDR 152
+
+#define EXTERNALMODEALARM_ADDR 196
 
 #define GSMNUMBER_ADDR 200  //16 bytes
 #define GSMCODE_ADDR 216
@@ -83,7 +114,11 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
 #define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
 #define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
-#define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX x"
+#define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX-x"
+#define MESSAGE_ALARM_PHHIGH	"dd/mm hh:mm PH+x"
+#define MESSAGE_ALARM_PHLOW     "dd/mm hh:mm PH-x"
+#define MESSAGE_ALARM_ECHIGH	"dd/mm hh:mm EC+x"
+#define MESSAGE_ALARM_ECLOW     "dd/mm hh:mm EC-x"
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
@@ -145,22 +180,32 @@ unsigned long cyclerDuration = 0; // cycler counter
 //byte alarm, tempHighAlarm, tempLowAlarm, lightHighAlarm, lightLowAlarm;
 
 // inputs
-float temperature, humidity, heatIndex, ph, ec;
+float temperature, humidity, heatIndex, ph, ec, temperature2, level;
 float light;
 float extana;
 
 // parameters
 unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
-float heaterOnTemp, heaterOffTemp;
-float fanOnTemp, fanOffTemp;
+float heaterOnTemp, heaterOffTemp, heaterOnTempNight, heaterOffTempNight;
+float fanOnTemp, fanOffTemp, fanOnTempNight, fanOffTempNight;
 unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
-float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm, phHighPhAlarm, phLowPhAlarm, ecHighPhAlarm, ecLowPhAlarm;
+float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm, tempHighTempNightAlarm, tempLowTempNightAlarm;
+float phHighPhAlarm, phLowPhAlarm, ecHighEcAlarm, ecLowEcAlarm;//, temp2HighTempAlarm, temp2LowTempAlarm, levelHighAlarm, levelLowAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
+float phHysteresis = 0.2;
+float ecHysteresis = 0.2;
+
+unsigned long lightOnOffDelay = 1800; //seconds, 0.5h
+//float tempDayNightDelay = 60.0;
+//float levelHysteresis = 0.2;
 
 int phLowX, phHighX;
 float phLowY, phHighY;
+
+int ecLowX, ecHighX;
+float ecLowY, ecHighY;
 
 byte externalModeAlarm;
 
@@ -678,7 +723,6 @@ DHT dht(DHTPIN, DHTTYPE);
 
 
 
-
 // Keypad 4x4 i2c
 #include "libraries/Keypad_I2C/Keypad_I2C.h"
 #include "libraries/Keypad/Keypad.h"
@@ -826,8 +870,10 @@ private:
 MENU_SELECT_ITEM  sel_auto= { 0, {"AUTO!"} };
 MENU_SELECT_ITEM  sel_off = { 1, {"OFF!"} };
 MENU_SELECT_ITEM  sel_on  = { 2, {"ON!"} };
+MENU_SELECT_ITEM  sel_rc_disable={ 3, {"DISABLE RADIO"} };
+//MENU_SELECT_ITEM  sel_rcon= { 3, {"RC ON"} };
 
-MENU_SELECT_LIST  const state_list[] = { &sel_auto, &sel_off, &sel_on };
+MENU_SELECT_LIST  const state_list[] = { &sel_auto, &sel_off, &sel_on, &sel_rc_disable };
 MENU_SELECT_LIST  const state_listOffOn[] = { &sel_off, &sel_on };
 
 MENU_SELECT lightMode_select = { &lightMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
@@ -849,18 +895,27 @@ MENU_VALUE heaterMode_value =  { TYPE_SELECT,     0,     0,     MENU_TARGET(&hea
 MENU_ITEM heaterMode_item    = { {"HEATER CONTROL"}, ITEM_VALUE,  0,        MENU_TARGET(&heaterMode_value) };
 MENU_VALUE heaterOnTemp_value ={ TYPE_FLOAT_10, 99,     0,    MENU_TARGET(&heaterOnTemp), HEATERONTEMP_ADDR  };
 MENU_VALUE heaterOffTemp_value={ TYPE_FLOAT_10, 99,     0,    MENU_TARGET(&heaterOffTemp), HEATEROFFTEMP_ADDR };
+MENU_VALUE heaterOnTempNight_value ={ TYPE_FLOAT_10, 99,     0,    MENU_TARGET(&heaterOnTempNight), HEATERONTEMPNIGHT_ADDR  };
+MENU_VALUE heaterOffTempNight_value={ TYPE_FLOAT_10, 99,     0,    MENU_TARGET(&heaterOffTempNight), HEATEROFFTEMPNIGHT_ADDR };
 //                                "123456789ABCDEF"
 MENU_ITEM heaterOnTemp_item   ={ {"HEATER ON   [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&heaterOnTemp_value)};
 MENU_ITEM heaterOffTemp_item  ={ {"HEATER OFF  [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&heaterOffTemp_value) };
+MENU_ITEM heaterOnTempNight_item   ={ {"HEATER ON N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&heaterOnTempNight_value)};
+MENU_ITEM heaterOffTempNight_item  ={ {"HEATER OF N [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&heaterOffTempNight_value) };
 
 MENU_SELECT fanMode_select ={ &fanMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
 MENU_VALUE fanMode_value =  { TYPE_SELECT,     0,     0,     MENU_TARGET(&fanMode_select) };
 MENU_ITEM fanMode_item    = { {"FAN CONTROL"}, ITEM_VALUE,  0,        MENU_TARGET(&fanMode_value) };
 MENU_VALUE fanOnTemp_value ={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOnTemp) , FANONTEMP_ADDR};
 MENU_VALUE fanOffTemp_value={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOffTemp) , FANOFFTEMP_ADDR};
+MENU_VALUE fanOnTempNight_value ={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOnTempNight) , FANONTEMPNIGHT_ADDR};
+MENU_VALUE fanOffTempNight_value={ TYPE_FLOAT_10, 99,   -99,    MENU_TARGET(&fanOffTempNight) , FANOFFTEMPNIGHT_ADDR};
 //                                "123456789ABCDEF"
 MENU_ITEM fanOnTemp_item     ={ {"FAN ON     [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&fanOnTemp_value) };
 MENU_ITEM fanOffTemp_item    ={ {"FAN OFF    [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&fanOffTemp_value) };
+MENU_ITEM fanOnTempNight_item     ={ {"FAN ON  N  [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&fanOnTempNight_value) };
+MENU_ITEM fanOffTempNight_item    ={ {"FAN OFF N  [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&fanOffTempNight_value) };
+
 
 MENU_SELECT cyclerMode_select = { &cyclerMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
 MENU_VALUE cyclerMode_value =   { TYPE_SELECT,     0,     0,     MENU_TARGET(&cyclerMode_select) };
@@ -878,23 +933,25 @@ MENU_ITEM cyclerOffSec_item  = { {"CYCLER OFF  [S]"},   ITEM_VALUE,  0,        M
 MENU_LIST const submenu_list1[] = { &lightMode_item, &lightOnHour_item, &lightOnMin_item, &lightOffHour_item,  &lightOffMin_item};
 MENU_ITEM menu_submenu1 = { {"LIGHT->"},  ITEM_MENU,  MENU_SIZE(submenu_list1),  MENU_TARGET(&submenu_list1) };
 
-MENU_LIST const submenu_list2[] = { &heaterMode_item, &heaterOnTemp_item, &heaterOffTemp_item };
+MENU_LIST const submenu_list2[] = { &heaterMode_item, &heaterOnTemp_item, &heaterOffTemp_item, &heaterOnTempNight_item, &heaterOffTempNight_item };
 MENU_ITEM menu_submenu2 = { {"HEATER->"},  ITEM_MENU,  MENU_SIZE(submenu_list2),  MENU_TARGET(&submenu_list2) };
 
-MENU_LIST const submenu_list3[] = { &fanMode_item, &fanOnTemp_item, &fanOffTemp_item };
+MENU_LIST const submenu_list3[] = { &fanMode_item, &fanOnTemp_item, &fanOffTemp_item, &fanOnTempNight_item, &fanOffTempNight_item };
 MENU_ITEM menu_submenu3 = { {"FAN->"},  ITEM_MENU,  MENU_SIZE(submenu_list3),  MENU_TARGET(&submenu_list3) };
 
 MENU_LIST const submenu_list4[] = { &cyclerMode_item, &cyclerOnMin_item, &cyclerOnSec_item, &cyclerOffMin_item,  &cyclerOffSec_item};
 MENU_ITEM menu_submenu4 = { {"CYCLER->"},  ITEM_MENU,  MENU_SIZE(submenu_list4),  MENU_TARGET(&submenu_list4) };
 
 // Alarms
-MENU_VALUE tempHighTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighTempAlarm), TEMPHIGHTEMPALARM_ADDR };
+MENU_VALUE tempHighTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighTempNightAlarm), TEMPHIGHTEMPALARM_ADDR };
 MENU_ITEM tempHighTempAlarm_item   ={ {"TEMP HIGH   [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighTempAlarm_value) };
-
-MENU_VALUE tempLowTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowTempAlarm), TEMPLOWTEMPALARM_ADDR };
+MENU_VALUE tempLowTempAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowTempNightAlarm), TEMPLOWTEMPALARM_ADDR };
 MENU_ITEM tempLowTempAlarm_item   ={ {"TEMP LOW    [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowTempAlarm_value) };
 
-
+MENU_VALUE tempHighTempNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighTempAlarm), TEMPHIGHTEMPNIGHTALARM_ADDR };
+MENU_ITEM tempHighTempNightAlarm_item   ={ {"TEMP HIGH N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighTempNightAlarm_value) };
+MENU_VALUE tempLowTempNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowTempAlarm), TEMPLOWTEMPNIGHTALARM_ADDR };
+MENU_ITEM tempLowTempNightAlarm_item   ={ {"TEMP LOW  N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowTempNightAlarm_value) };
 
 
 //                               TYPE             MAX    MIN    TARGET
@@ -903,28 +960,41 @@ MENU_VALUE phHighX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phH
 MENU_VALUE phLowY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowY), PHLOWY_ADDR };
 MENU_VALUE phHighY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighY), PHHIGHY_ADDR };
 
-MENU_VALUE phLowPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowPhAlarm), PHLOWPHALARM_ADDR };
-MENU_VALUE phHighPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighPhAlarm), PHHIGHPHALARM_ADDR };
-
 //                                "123456789ABCDEF"
-MENU_ITEM phLowX_item   =   { {"PH LOW X    [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&phLowX_value) };
+MENU_ITEM phLowX_item   =   { {"PH LOW  X   [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&phLowX_value) };
 MENU_ITEM phHighX_item   =  { {"PH HIGH X   [-]"},    ITEM_VALUE,  0,        MENU_TARGET(&phHighX_value) };
-MENU_ITEM phLowY_item  =    { {"PH LOW Y   [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowY_value) };
+MENU_ITEM phLowY_item  =    { {"PH LOW  Y  [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowY_value) };
 MENU_ITEM phHighY_item   =  { {"PH HIGH Y  [PH]"},   ITEM_VALUE,  0,        MENU_TARGET(&phHighY_value) };
 
-MENU_ITEM phLowPhAlarm_item  =    { {"PH LOW AL  [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowPhAlarm_value) };
-MENU_ITEM phHighPhAlarm_item   =  { {"PH HIGH AL [PH]"},   ITEM_VALUE,  0,        MENU_TARGET(&phHighPhAlarm_value) };
-
-MENU_LIST const submenu_list_ph[] = { &phLowPhAlarm_item, &phHighPhAlarm_item, &phLowX_item, &phLowY_item,  &phHighX_item, &phHighY_item};
+MENU_LIST const submenu_list_ph[] = {&phLowX_item, &phLowY_item,  &phHighX_item, &phHighY_item};
 MENU_ITEM menu_submenu_ph = { {"PH->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ph),  MENU_TARGET(&submenu_list_ph) };
 
 
+//                               TYPE             MAX    MIN    TARGET
+MENU_VALUE ecLowX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecLowX), ECLOWX_ADDR };
+MENU_VALUE ecHighX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecHighX), ECHIGHX_ADDR };
+MENU_VALUE ecLowY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecLowY), ECLOWY_ADDR };
+MENU_VALUE ecHighY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecHighY), ECHIGHY_ADDR };
+//                                "123456789ABCDEF"
+MENU_ITEM ecLowX_item   =   { {"EC LOW  X   [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&ecLowX_value) };
+MENU_ITEM ecHighX_item   =  { {"EC HIGH X   [-]"},    ITEM_VALUE,  0,        MENU_TARGET(&ecHighX_value) };
+MENU_ITEM ecLowY_item  =    { {"EC LOW  Y [S/M]"},  ITEM_VALUE,  0,        MENU_TARGET(&ecLowY_value) };
+MENU_ITEM ecHighY_item   =  { {"EC HIGH Y [S/M]"},   ITEM_VALUE,  0,        MENU_TARGET(&ecHighY_value) };
+
+MENU_LIST const submenu_list_ec[] = {&ecLowX_item, &ecLowY_item,  &ecHighX_item, &ecHighY_item};
+MENU_ITEM menu_submenu_ec = { {"EC->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ec),  MENU_TARGET(&submenu_list_ec) };
 
 
 
+MENU_VALUE phLowPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowPhAlarm), PHLOWPHALARM_ADDR };
+MENU_VALUE phHighPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighPhAlarm), PHHIGHPHALARM_ADDR };
+MENU_ITEM phLowPhAlarm_item  =    { {"PH LOW     [PH]"},  ITEM_VALUE,  0,        MENU_TARGET(&phLowPhAlarm_value) };
+MENU_ITEM phHighPhAlarm_item   =  { {"PH HIGH    [PH]"},   ITEM_VALUE,  0,        MENU_TARGET(&phHighPhAlarm_value) };
 
-
-
+MENU_VALUE ecLowEcAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecLowEcAlarm), ECLOWECALARM_ADDR };
+MENU_VALUE ecHighEcAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecHighEcAlarm), ECHIGHECALARM_ADDR };
+MENU_ITEM ecLowEcAlarm_item  =    { {"EC LOW    [S/M]"},  ITEM_VALUE,  0,        MENU_TARGET(&ecLowEcAlarm_value) };
+MENU_ITEM ecHighEcAlarm_item   =  { {"EC HIGH   [S/M]"},   ITEM_VALUE,  0,        MENU_TARGET(&ecHighEcAlarm_value) };
 
 
 //TODO !!!
@@ -938,7 +1008,7 @@ MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        M
 MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 2,    0,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
 MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
 
-MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item, &externalModeAlarm_item};
+MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &tempHighTempNightAlarm_item, &tempLowTempNightAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item,  &phLowPhAlarm_item, &phHighPhAlarm_item, &ecLowEcAlarm_item, &ecHighEcAlarm_item, &externalModeAlarm_item};
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -958,7 +1028,7 @@ MENU_ITEM item_reset   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiRe
 
 
 //        List of items in menu level
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &item_reset };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &menu_submenu_ec, &item_reset };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
 
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -1080,10 +1150,14 @@ void loadEEPROM() {
     read(HEATERMODE_ADDR, heaterMode);
     read(HEATERONTEMP_ADDR, heaterOnTemp);
     read(HEATEROFFTEMP_ADDR, heaterOffTemp);
+    read(HEATERONTEMPNIGHT_ADDR, heaterOnTempNight);
+    read(HEATEROFFTEMPNIGHT_ADDR, heaterOffTempNight);
 
     read(FANMODE_ADDR, fanMode);
     read(FANONTEMP_ADDR, fanOnTemp);
     read(FANOFFTEMP_ADDR, fanOffTemp);
+    read(FANONTEMPNIGHT_ADDR, fanOnTempNight);
+    read(FANOFFTEMPNIGHT_ADDR, fanOffTempNight);
 
     read(CYCLERMODE_ADDR, cyclerMode);
     read(CYCLERONMIN_ADDR, cyclerOnMin);
@@ -1095,6 +1169,8 @@ void loadEEPROM() {
     read(TEMPLOWTEMPALARM_ADDR, tempLowTempAlarm);
     read(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
     read(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
+    read(TEMPHIGHTEMPNIGHTALARM_ADDR, tempHighTempNightAlarm);
+    read(TEMPLOWTEMPNIGHTALARM_ADDR, tempLowTempNightAlarm);
 
     read(PHLOWPHALARM_ADDR, phLowPhAlarm);
     read(PHHIGHPHALARM_ADDR, phHighPhAlarm);
@@ -1102,6 +1178,13 @@ void loadEEPROM() {
     read(PHHIGHX_ADDR, phHighX);
     read(PHLOWY_ADDR, phLowY);
     read(PHHIGHY_ADDR, phHighY);
+
+    read(ECLOWECALARM_ADDR, ecLowEcAlarm);
+    read(ECHIGHECALARM_ADDR, ecHighEcAlarm);
+    read(ECLOWX_ADDR, ecLowX);
+    read(ECHIGHX_ADDR, ecHighX);
+    read(ECLOWY_ADDR, ecLowY);
+    read(ECHIGHY_ADDR, ecHighY);
 
     read(GSMMODE_ADDR, gsmMode);
     read(GSMCODE_ADDR, gsmCode);
@@ -1128,18 +1211,27 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(LIGHTOFFMIN_ADDR, lightOffMin);
 
     heaterMode = 0;
-    heaterOnTemp=0.0;
-    heaterOffTemp=21.0;
+    heaterOnTemp=15.0;
+    heaterOffTemp=16.0;
+    heaterOnTempNight=10.0;
+    heaterOffTempNight=11.0;
     OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
     OMEEPROM::write(HEATERONTEMP_ADDR, heaterOnTemp);
     OMEEPROM::write(HEATEROFFTEMP_ADDR, heaterOffTemp);
+    OMEEPROM::write(HEATERONTEMPNIGHT_ADDR, heaterOnTempNight);
+    OMEEPROM::write(HEATEROFFTEMPNIGHT_ADDR, heaterOffTempNight);
+
 
     fanMode = 0;
-    fanOnTemp=23.0;
-    fanOffTemp=23.0;
+    fanOnTemp=20.0;
+    fanOffTemp=19.0;
+    fanOnTempNight=15.0;
+    fanOffTempNight=14.0;
     OMEEPROM::write(FANMODE_ADDR, fanMode);
     OMEEPROM::write(FANONTEMP_ADDR, fanOnTemp);
     OMEEPROM::write(FANOFFTEMP_ADDR, fanOffTemp);
+    OMEEPROM::write(FANONTEMPNIGHT_ADDR, fanOnTempNight);
+    OMEEPROM::write(FANOFFTEMPNIGHT_ADDR, fanOffTempNight);
 
     cyclerMode = 0;
     cyclerOnMin= 0;
@@ -1156,10 +1248,15 @@ void saveDefaultEEPROM() {
     tempLowTempAlarm = 19.0;
     lightHighValueAlarm = 40.0;
     lightLowValueAlarm = 60.0;
+    tempHighTempNightAlarm = 15.0;
+    tempLowTempNightAlarm = 10.0;
     OMEEPROM::write(TEMPHIGHTEMPALARM_ADDR, tempHighTempAlarm);
     OMEEPROM::write(TEMPLOWTEMPALARM_ADDR, tempLowTempAlarm);
     OMEEPROM::write(LIGHTHIGHVALUEALARM_ADDR, lightHighValueAlarm);
     OMEEPROM::write(LIGHTLOWVALUEALARM_ADDR, lightLowValueAlarm);
+    OMEEPROM::write(TEMPHIGHTEMPNIGHTALARM_ADDR, tempHighTempNightAlarm);
+    OMEEPROM::write(TEMPLOWTEMPNIGHTALARM_ADDR, tempLowTempNightAlarm);
+
 
     phLowX = 655;
     phHighX = 528;
@@ -1174,6 +1271,20 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(PHLOWY_ADDR, phLowY);
     OMEEPROM::write(PHHIGHY_ADDR, phHighY);
 
+    ecLowX = 242;
+    ecHighX = 125;
+    ecLowY = 1.278;
+    ecHighY = 4.523;
+    ecLowEcAlarm = 0;
+    ecHighEcAlarm = 1000;
+    OMEEPROM::write(ECLOWECALARM_ADDR, ecLowEcAlarm);
+    OMEEPROM::write(ECHIGHECALARM_ADDR, ecHighEcAlarm);
+    OMEEPROM::write(ECLOWX_ADDR, ecLowX);
+    OMEEPROM::write(ECHIGHX_ADDR, ecHighX);
+    OMEEPROM::write(ECLOWY_ADDR, ecLowY);
+    OMEEPROM::write(ECHIGHY_ADDR, ecHighY);
+
+    /*
     int iZero = 0;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, iZero);
 
@@ -1188,6 +1299,7 @@ void saveDefaultEEPROM() {
     gsmCode = 9999;
     OMEEPROM::write(GSMMODE_ADDR, gsmMode);
     OMEEPROM::write(GSMCODE_ADDR, gsmCode);
+	*/
 
     externalModeAlarm = 0;
     OMEEPROM::write(EXTERNALMODEALARM_ADDR, externalModeAlarm);
@@ -1199,19 +1311,20 @@ void saveDefaultEEPROM() {
 //////////////////////////////////
 void setup() {
 
-
+	pinMode(ECINPUTPIN ,INPUT);
+	pinMode(ECENABLEPIN ,OUTPUT);
 
 	pinMode(EXTPIN, INPUT);
 	digitalWrite(EXTPIN, HIGH);
 	//externalAlarm2.alarmActiveDelay = 0;
 
 	pinMode(LEDPIN, OUTPUT);
-
+	/*
 	pinMode(LIGHTCONTROLPIN, OUTPUT);
 	pinMode(HEATERCONTROLPIN, OUTPUT);
 	pinMode(FANCONTROLPIN, OUTPUT);
 	pinMode(CYCLERCONTROLPIN, OUTPUT);
-
+	*/
 	Serial.begin(9600);
 	while(!Serial);
 	/*
@@ -1289,6 +1402,18 @@ double analogRead(int pin, int samples){
   }
   return (double)(result / samples);
 }
+
+double calcEC(long lowPulseTime, long highPulseTime) {
+  double ec_a, ec_b, ec, pulseTime;
+
+  ec_a =  (ecHighY - ecLowY) / (1/ (double) ecHighX - 1/ (double)ecLowX);
+  ec_b = ecLowY - ec_a / (float) ecLowX;
+  pulseTime = (double)((lowPulseTime + highPulseTime) / 2 + 2);
+
+  ec = (ec_a / pulseTime + ec_b);
+  return ec;
+}
+
 /*
 void getInstrumentString(bool a, byte mode, char* b) {
 	//TODO is it safe?
@@ -1350,6 +1475,8 @@ void infoSerial(Stream* ser) {
 // main loop
 //////////////////////////////////
 unsigned long millisecondsGsm;
+unsigned long lightOnDuration, lightOffDuration; //day / night
+bool lightControlLast, heaterControlLast, fanControlLast, cyclerControlLast;
 
 void loop() {
 	//gsmMode = 0;
@@ -1359,6 +1486,43 @@ void loop() {
 	// second counter
 	//if(now.secondstime() > secondstime) {
 	if(secondsCounter + 1000 < milliseconds || milliseconds < secondsCounter) {
+
+		if(lightAuto) {
+			lightOnDuration++;
+			lightOffDuration = 0;
+		}
+		else {
+			lightOffDuration++;
+			lightOnDuration = 0;
+		}
+
+		//TODO:
+		bool rcUpdate = (secondsCounter % 15 == 0);
+
+		if(lightMode != 3 ) {
+			if(rcUpdate || lightControlLast != lightControl) {
+				lightControl ? sendSignal(RFTXPIN, rf1on) : sendSignal(RFTXPIN, rf1off);
+				lightControlLast = lightControl;
+			}
+		}
+		if(heaterMode != 3) {
+			if(rcUpdate || heaterControlLast != heaterControl) {
+				heaterControl ? sendSignal(RFTXPIN, rf2on) : sendSignal(RFTXPIN, rf2off);
+				heaterControlLast = heaterControl;
+			}
+		}
+		if(fanMode != 3) {
+			if(rcUpdate || fanControlLast != fanControl) {
+				fanControl ? sendSignal(RFTXPIN, rf3on) : sendSignal(RFTXPIN, rf3off);
+				fanControlLast = fanControl;
+			}
+		}
+		if(cyclerMode != 3) {
+			if(rcUpdate || cyclerControlLast != cyclerControl) {
+				cyclerControl ? sendSignal(RFTXPIN, rf4on) : sendSignal(RFTXPIN, rf4off);
+				cyclerControlLast = cyclerControl;
+			}
+		}
 
 		//cyclerDuration += now.secondstime() - secondstime ;
 		//TOD add real time diference
@@ -1385,6 +1549,11 @@ void loop() {
 				gsmMgr.proceedSMS();//&lightMode, &heaterMode, &fanMode, &cyclerMode);
 			}
 		}
+
+		//TODO:
+		//if(!Menu.enable()) {
+		//	uiScreen();
+		//}
 	}
 
 	if (!Menu.shown()) {
@@ -1393,6 +1562,8 @@ void loop() {
 	}
 
 	char key = kpd.getKey2();
+
+
 	if(key == '#') {
 		//uiMain();
 		uiState = 0;
@@ -1426,6 +1597,8 @@ void loop() {
 		if(key == NO_KEY)
 			pressed = 0;
 		*/
+
+		//TODO:
 		uiScreen();
 	}
 
@@ -1496,6 +1669,28 @@ void loop() {
 	ph = calcPH(analogRead(PHANAPIN, SAMPLES));
 	//ph = analogRead(PHANAPIN, SAMPLES);
 
+	/*
+	//TODO: not measure every loop
+	long highPulseTime = 0;
+	long lowPulseTime = 0;
+	//long pulseTime = 0;
+	digitalWrite(ECENABLEPIN, HIGH); // power up the sensor
+	//delay(100);
+	for(unsigned int j = 0; j < SAMPLES; j++){
+		highPulseTime += pulseIn(ECINPUTPIN, HIGH);
+		//if (j == 0 and highPulseTime == 0)
+	    //    return MINVALUE;
+	    lowPulseTime += pulseIn(ECINPUTPIN, LOW);
+	}
+	//digitalWrite(ECENABLEPIN, LOW);
+	lowPulseTime = lowPulseTime / SAMPLES;
+	highPulseTime = highPulseTime / SAMPLES;
+	//pulseTime = (lowPulseTime + highPulseTime) / 2 + 2;
+	ec = calcEC(lowPulseTime, highPulseTime);
+	*/
+	ec = calcEC(pulseIn(ECINPUTPIN, LOW), pulseIn(ECINPUTPIN, HIGH));
+
+
 	//////////////////////////////////
 	// outputs
 	//////////////////////////////////
@@ -1537,14 +1732,35 @@ void loop() {
 	//////////////////////////////////
 	// alarms
 	//////////////////////////////////
-	if(tempHighAlarm2.activate(temperature > tempHighTempAlarm))
+	float tempHigh, tempLow;
+
+	if(lightAuto) {
+		//day - light
+		tempHigh = tempHighTempAlarm;
+		tempLow = tempLowTempAlarm;
+	}
+	else {
+		//night - dark
+		tempHigh = tempHighTempNightAlarm;
+		tempLow = tempLowTempNightAlarm;
+	}
+	if(lightAuto && (lightOnDuration < lightOnOffDelay)) {
+		//change from night to day
+		tempLow = tempLowTempNightAlarm;
+	}
+	if(!lightAuto && (lightOffDuration < lightOnOffDelay)) {
+		//change from night to day
+		tempHigh = tempHighTempAlarm;
+	}
+
+	if(tempHighAlarm2.activate(temperature > tempHigh))
 		saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_ON);;
-	if(tempHighAlarm2.deactivate(temperature < (tempHighTempAlarm - tempHysteresis)))
+	if(tempHighAlarm2.deactivate(temperature < (tempHigh - tempHysteresis)))
 		saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_OFF);
 
-	if(tempLowAlarm2.activate(temperature < tempLowTempAlarm))
+	if(tempLowAlarm2.activate(temperature < tempLow))
 		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_ON);;
-	if(tempLowAlarm2.deactivate(temperature > (tempLowTempAlarm + tempHysteresis)))
+	if(tempLowAlarm2.deactivate(temperature > (tempLow + tempHysteresis)))
 		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_OFF);
 
 	if(lightLowAlarm2.activate(lightControl && (light < lightLowValueAlarm)))
@@ -1577,21 +1793,49 @@ void loop() {
 	if(externalAlarm2.deactivate(!externalAlarm))
 		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_OFF);
 
+
+	if(phHighAlarm2.activate(ph > phHighPhAlarm))
+		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);;
+	if(phHighAlarm2.deactivate(ph < (phHighPhAlarm - phHysteresis)))
+		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_OFF);
+
+	if(phLowAlarm2.activate(ph < phLowPhAlarm))
+		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);;
+	if(phLowAlarm2.deactivate(ph > (phLowPhAlarm + phHysteresis)))
+		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_OFF);
+
+	if(ecHighAlarm2.activate(ec > ecHighEcAlarm))
+		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);;
+	if(ecHighAlarm2.deactivate(ec < (ecHighEcAlarm - ecHysteresis)))
+		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_OFF);
+
+	if(ecLowAlarm2.activate(ec < ecLowEcAlarm))
+		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);;
+	if(ecLowAlarm2.deactivate(ec > (ecLowEcAlarm + ecHysteresis)))
+		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_OFF);
+
 	if(kpd.getKeys()) {
 		tempHighAlarm2.ack();
 		tempLowAlarm2.ack();
 		lightHighAlarm2.ack();
 		lightLowAlarm2.ack();
 		externalAlarm2.ack();
+		phHighAlarm2.ack();
+		phLowAlarm2.ack();
+		ecHighAlarm2.ack();
+		ecLowAlarm2.ack();
     }
 
 	//TEST
 	//digitalWrite(LEDPIN, cyclerControl);
 
+	/*
 	digitalWrite(LIGHTCONTROLPIN, !lightControl);
 	digitalWrite(HEATERCONTROLPIN, !heaterControl);
 	digitalWrite(FANCONTROLPIN, !fanControl);
 	digitalWrite(CYCLERCONTROLPIN, !cyclerControl);
+	*/
+
 	//////////////////////////////////
 	// communication
 	//////////////////////////////////
@@ -1696,7 +1940,12 @@ void uiDraw(char* p_text, int p_row, int p_col, int len) {
 
 void uiInstrument(bool instrument, byte mode) {
 	lcd.print(instrument);
-	mode ? lcd.print('M') : lcd.print('A');
+	if(mode == 0)
+		lcd.print('A');
+	else if(mode < 3)
+		lcd.print('M');
+	else
+		lcd.print('D');
 }
 
 
@@ -1780,21 +2029,83 @@ void uiScreen() {
 		pressed = 0;
 	 */
 	if(uiState == UISTATE_MEAS) {
-		lcd.clear();
-		lcd.setCursor(0, 0);
-		lcd.print(F("l "));
-		lcd.print(light);
+		if(key == KPD_UP)
+			uiPage--;
+		if(key == KPD_DOWN)
+			uiPage++;
+		uiPage = max(0, uiPage);
+		uiPage = min(4, uiPage);
 
-		lcd.setCursor(8, 0);
-		lcd.print(F("ph"));
-		lcd.print(ph);
+		//TODO:
+		//lcd.clear();
 
-		lcd.setCursor(0, 1);
-		lcd.print(F("ex"));
-		//lcd.print(digitalRead(EXTPIN));
-		lcd.print(extana);
+		if(uiPage == 0) {
+			lcd.setCursor(0, 0);
+			uiLcdPrintAlarm(tempHighAlarm2.active, tempLowAlarm2.active);
+			lcd.print(F("TEMP[C]:"));
+			lcd.print(temperature);
+			uiLcdPrintSpaces8();
+			lcd.setCursor(0, 1);
+			uiLcdPrintAlarm(false, false);
+			lcd.print(F("HUMI[%]:"));
+			lcd.print(humidity);
+			uiLcdPrintSpaces8();
+		}
+		else if(uiPage == 1) {
+			lcd.setCursor(0, 0);
+			uiLcdPrintAlarm(phHighAlarm2.active, phLowAlarm2.active);
+			lcd.print(F("PH [PH]:"));
+			lcd.print(ph);
+			uiLcdPrintSpaces8();
+			lcd.setCursor(0, 1);
+			uiLcdPrintAlarm(ecHighAlarm2.active, ecLowAlarm2.active);
+			lcd.print(F("EC[S/M]:"));
+			lcd.print(ec);
+			uiLcdPrintSpaces8();
+		}
+		else if(uiPage == 2) {
+			lcd.setCursor(0, 0);
+			uiLcdPrintAlarm(lightHighAlarm2.active, lightLowAlarm2.active);
+			lcd.print(F("LIGHT[-]:"));
+			lcd.print(int(light));
+			uiLcdPrintSpaces8();
+			lcd.setCursor(0, 1);
+			uiLcdPrintAlarm(false, externalAlarm2.active);
+			lcd.print(F("POWER[%]:"));
+			lcd.print(int(extana));
+			uiLcdPrintSpaces8();
+		}
+		else if(uiPage == 3) {
+			lcd.setCursor(0, 0);
+			lcd.print(F(" PH X[-]:"));
+			//lcd.setCursor(8, 0);
+			//TODO: use global from loop
+			lcd.print(analogRead(PHANAPIN, SAMPLES));
+			uiLcdPrintSpaces8();
+			lcd.setCursor(0, 1);
+			lcd.print(F(" EC X[-]:"));
+			//TODO:
+			double pulseTime = (double)((pulseIn(ECINPUTPIN, LOW) + pulseIn(ECINPUTPIN, HIGH)) / 2 + 2);
+			lcd.print(pulseTime);
+			uiLcdPrintSpaces8();
 
-		delay(250);
+		}
+		else if(uiPage == 4) {
+			lcd.setCursor(0, 0);
+			if(lightAuto) {
+				lcd.print(F(" DAY *  "));
+				uiLcdPrintSpaces8();
+			}
+			else {
+				lcd.print(F(" NIGHT  "));
+				uiLcdPrintSpaces8();
+			}
+			lcd.setCursor(0, 1);
+			//lcd.print(F(" GROWMAT EASY HY"));
+			uiLcdPrintSpaces8();
+			uiLcdPrintSpaces8();
+		}
+		//delay(200);
 		/*
 		if(abs(temperature) < 10)
 			lcd.print('0');
@@ -1957,10 +2268,24 @@ void uiInfo() {
 }
 */
 
+void uiLcdPrintAlarm(bool alarmHigh, bool alarmLow) {
+	if(alarmHigh)
+		lcd.print('+');
+	else if(alarmLow)
+		lcd.print('-');
+	else
+		lcd.print(' ');
+}
+
+void uiLcdPrintSpaces8() {
+	lcd.print(F("        "));
+}
 
 void uiMain() {
 
-	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck) {
+//if(uiPage==0) {
+
+	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck || phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
 	}
 	else {
@@ -2040,7 +2365,56 @@ void uiMain() {
 	uiInstrument(fanControl, fanMode);
 	lcd.print(" C");
 	uiInstrument(cyclerControl, cyclerMode);
+//}
+	/*
+	else if(uiPage == 1) {
+		lcd.clear();
+		lcd.setCursor(0, 0);
+		uiLcdPrintAlarm(lightHighAlarm2.active, lightLowAlarm2.active);
+		lcd.print(F("LIGHT[-]:"));
+		lcd.print(int(light));
 
+
+		lcd.setCursor(0, 1);
+		uiLcdPrintAlarm(false, externalAlarm2.active);
+		lcd.print(F("POWER[%]:"));
+		lcd.print(int(extana));
+	}
+	else if(uiPage == 2) {
+			lcd.clear();
+			lcd.setCursor(0, 0);
+			uiLcdPrintAlarm(tempHighAlarm2.active, tempLowAlarm2.active);
+			lcd.print(F("TEMP[C]:"));
+			lcd.print(temperature);
+
+			lcd.setCursor(0, 1);
+			uiLcdPrintAlarm(false, false);
+			lcd.print(F("HUMI[%]:"));
+			lcd.print(humidity);
+
+	}
+	else if(uiPage == 3) {
+		lcd.clear();
+		lcd.setCursor(0, 0);
+		uiLcdPrintAlarm(phHighAlarm2.active, phLowAlarm2.active);
+		lcd.print(F("PH[PH]:"));
+		lcd.print(ph);
+
+		lcd.setCursor(0, 1);
+		uiLcdPrintAlarm(ecHighAlarm2.active, ecLowAlarm2.active);
+		lcd.print(F("EC[S/M]:"));
+		lcd.print(ec);
+	}
+
+
+	//TODO: ???
+	char key = kpd.getKey2();
+	if(key == KPD_UP)
+		uiPage--;
+	if(key == KPD_DOWN)
+		uiPage++;
+	uiPage = max(0, uiPage);
+	uiPage = min(3, uiPage);*/
 }
 
 /*
