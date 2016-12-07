@@ -2,7 +2,7 @@
 #define VERSION 1
 
 #include "libraries/RF433/RF433.h"
-#define RFRXPIN A3
+#define RFRXPIN A4
 #define RFTXPIN 4
 // MCE07
 byte rf1off[] = {11,30,3,4,3,3,3,11,3,11,3,11,3,3,3,4,3,11,3,3,3,4,3,3,3,4,3,3,3,4,3,10,4,3,3,11,3,11,3,3,4,3,3,4,3,10,3,11,3,4,3,11,3,10,4,10,3,11,3,11,3,11,3,3,3,11,3,4,3,11,3,10,3,11,3,11,3,3,4,3,3,3,4,188,3,3,3,3,30,29,4,3,3,3,4,10,3,11,3,11,3,3,4,3,3,11,3,3,4,3,3,3,4,3,3,3,4,3,3,11,3,4,3,10,4};
@@ -33,6 +33,10 @@ const byte KPD_COLS = 4;
 #define EXTPIN 8
 #define EXTANAPIN A2
 
+#define POWERANAPIN A3
+
+#define ONEWIREBUSPIN 5
+
 #define LIGHTPIN A0
 #define DHTPIN 6
 #define DHTTYPE DHT11   // DHT 11
@@ -43,6 +47,9 @@ const byte KPD_COLS = 4;
 #define ECENABLEPIN 3
 
 #define PHANAPIN A1
+
+
+
 #define SAMPLES 10
 
 
@@ -96,6 +103,9 @@ const byte KPD_COLS = 4;
 #define TEMPHIGHTEMPNIGHTALARM_ADDR 148
 #define TEMPLOWTEMPNIGHTALARM_ADDR 152
 
+#define HUMIHIGHALARM_ADDR 156
+#define HUMILOWALARM_ADDR 160
+
 #define EXTERNALMODEALARM_ADDR 196
 
 #define GSMNUMBER_ADDR 200  //16 bytes
@@ -113,25 +123,40 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
 #define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
 #define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
-#define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX-x"
+#define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX x"
 #define MESSAGE_ALARM_PHHIGH	"dd/mm hh:mm PH+x"
 #define MESSAGE_ALARM_PHLOW     "dd/mm hh:mm PH-x"
 #define MESSAGE_ALARM_ECHIGH	"dd/mm hh:mm EC+x"
 #define MESSAGE_ALARM_ECLOW     "dd/mm hh:mm EC-x"
+#define MESSAGE_ALARM_HUMIHIGH	"dd/mm hh:mm H +x"
+#define MESSAGE_ALARM_HUMILOW   "dd/mm hh:mm H -x"
+#define MESSAGE_ALARM_POWER     "dd/mm hh:mm PW x"
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
-#define MESSAGE_TEMPHIGH "T+!\n"
-#define MESSAGE_TEMPLOW "T-!\n"
-#define MESSAGE_LIGHTHIGH "L+!\n"
-#define MESSAGE_LIGHTLOW "L-!\n"
-#define MESSAGE_EXTERNAL "EX!\n"
+#define MESSAGE_TEMPHIGH "T+!"
+#define MESSAGE_TEMPLOW "T-!"
+#define MESSAGE_LIGHTHIGH "L+!"
+#define MESSAGE_LIGHTLOW "L-!"
+#define MESSAGE_EXTERNAL "EX!"
+#define MESSAGE_HUMIHIGH "T+!"
+#define MESSAGE_HUMILOW "T-!"
+#define MESSAGE_POWERLOW "PW!"
 
-#define MESSAGE_TEMP "\nT="
-#define MESSAGE_HUMI "\nH="
-#define MESSAGE_LIGHT "\nL="
-#define MESSAGE_EXT "\nE="
-#define MESSAGE_GSM  "\nGSM="
+#define MESSAGE_TEMP "TA="
+#define MESSAGE_HUMI "HA="
+#define MESSAGE_LIGHT "LA="
+#define MESSAGE_EXT "EX="
+#define MESSAGE_GSM  "GM="
+#define MESSAGE_TEMP2  "TM="
+#define MESSAGE_PH  "PH="
+#define MESSAGE_EC  "EC="
+#define MESSAGE_POWER "PW="
+
+#define MESSAGE_CMD_LIGHT  "#L"
+#define MESSAGE_CMD_HEATER  "#H"
+#define MESSAGE_CMD_FAN  "#F"
+#define MESSAGE_CMD_CYCLER  "#C"
 
 #define GSMCHECKSMSINTERVAL  60000
 #define GSMCALLDURATION  30000
@@ -181,7 +206,7 @@ unsigned long cyclerDuration = 0; // cycler counter
 // inputs
 float temperature, humidity, heatIndex, ph, ec, temperature2, level;
 float light;
-float extana;
+float extana, powerana;
 
 // parameters
 unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
@@ -190,11 +215,13 @@ float fanOnTemp, fanOffTemp, fanOnTempNight, fanOffTempNight;
 unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
 float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm, tempHighTempNightAlarm, tempLowTempNightAlarm;
 float phHighPhAlarm, phLowPhAlarm, ecHighEcAlarm, ecLowEcAlarm;//, temp2HighTempAlarm, temp2LowTempAlarm, levelHighAlarm, levelLowAlarm;
+float humiHighAlarm, humiLowAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
 float phHysteresis = 0.2;
 float ecHysteresis = 0.2;
+float humiHysteresis = 0.5;
 
 unsigned long lightOnOffDelay = 1800; //seconds, 0.5h
 //float tempDayNightDelay = 60.0;
@@ -295,8 +322,17 @@ class Alarm {
 	}
 };
 
-Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2, phHighAlarm2, phLowAlarm2, ecHighAlarm2, ecLowAlarm2;
+Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2, phHighAlarm2, phLowAlarm2, ecHighAlarm2, ecLowAlarm2, humiHighAlarm2, humiLowAlarm2, powerAlarm2;
 
+
+#include "libraries/OneWire/OneWire.h"
+//#include "libraries/DallasTemperature/DallasTemperature.h"
+//#define ONEWIREBUSPIN 2
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONEWIREBUSPIN);
+// Pass our oneWire reference to Dallas Temperature.
+//DallasTemperature oneWireSensors(&oneWire);
 
 #include <Wire.h>
 
@@ -335,6 +371,11 @@ public:
 	void Sim800l2::sendSmsText(char* s) {
 		printSerial(s);
 	}
+	void Sim800l2::sendSmsTextLn(char* s) {
+		printSerial(s);
+		printSerial('\n');
+	}
+
 	void Sim800l2::sendSmsText(char ch) {
 		printSerial(ch);
 	}
@@ -517,11 +558,14 @@ public:
 						//sim->sendSmsEnd();
 
 
-						if(tempHighAlarm2.active) sim->sendSmsText(MESSAGE_TEMPHIGH);
-						if(tempLowAlarm2.active) sim->sendSmsText(MESSAGE_TEMPLOW);
-						if(lightHighAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTHIGH);
-						if(lightLowAlarm2.active) sim->sendSmsText(MESSAGE_LIGHTLOW);
-						if(externalAlarm2.active) sim->sendSmsText(MESSAGE_EXTERNAL);
+						if(tempHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_TEMPHIGH);
+						if(tempLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_TEMPLOW);
+						if(lightHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_LIGHTHIGH);
+						if(lightLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_LIGHTLOW);
+						if(externalAlarm2.active) sim->sendSmsTextLn(MESSAGE_EXTERNAL);
+						if(humiHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_HUMIHIGH);
+						if(humiLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_HUMILOW);
+						if(powerAlarm2.active) sim->sendSmsTextLn(MESSAGE_POWERLOW);
 
 						//sim->sendSmsTextT(10);
 						//sim->sendSmsTextT(0.3);
@@ -544,16 +588,32 @@ public:
 						sim->sendSmsText(" C");
 						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
 						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
-						sim->sendSmsText("\n");
+						sim->sendSmsText('\n');
 
 						sim->sendSmsText(MESSAGE_TEMP);
 						sim->sendSmsText(temperature);
+						sim->sendSmsText('\n');
 						sim->sendSmsText(MESSAGE_HUMI);
 						sim->sendSmsText(humidity);
+						sim->sendSmsText('\n');
 						sim->sendSmsText(MESSAGE_LIGHT);
 						sim->sendSmsText(light);
+						sim->sendSmsText('\n');
 						sim->sendSmsText(MESSAGE_EXT);
-						sim->sendSmsText(digitalRead(EXTPIN));
+						sim->sendSmsText(extana);
+						sim->sendSmsText('\n');
+						sim->sendSmsText(MESSAGE_POWER);
+						sim->sendSmsText(powerana);
+						sim->sendSmsText('\n');
+						sim->sendSmsText(MESSAGE_TEMP2);
+						sim->sendSmsText(temperature2);
+						sim->sendSmsText('\n');
+						sim->sendSmsText(MESSAGE_PH);
+						sim->sendSmsText(ph);
+						sim->sendSmsText('\n');
+						sim->sendSmsText(MESSAGE_EC);
+						sim->sendSmsText(ec);
+						sim->sendSmsText('\n');
 
 
 						sim->sendSmsText(MESSAGE_GSM);
@@ -996,6 +1056,10 @@ MENU_ITEM ecLowEcAlarm_item  =    { {"EC LOW    [S/M]"},  ITEM_VALUE,  0,       
 MENU_ITEM ecHighEcAlarm_item   =  { {"EC HIGH   [S/M]"},   ITEM_VALUE,  0,        MENU_TARGET(&ecHighEcAlarm_value) };
 
 
+MENU_VALUE humiLowAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&humiLowAlarm), HUMILOWALARM_ADDR };
+MENU_VALUE humiHighAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&humiHighAlarm), HUMIHIGHALARM_ADDR };
+MENU_ITEM humiLowAlarm_item  =    { {"HUMI LOW    [%]"},  ITEM_VALUE,  0,        MENU_TARGET(&humiLowAlarm_value) };
+MENU_ITEM humiHighAlarm_item   =  { {"HUMI HIGH   [%]"},   ITEM_VALUE,  0,        MENU_TARGET(&humiHighAlarm_value) };
 //TODO !!!
 
 //                                "123456789ABCDEF"
@@ -1007,7 +1071,7 @@ MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        M
 MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 2,    0,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
 MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
 
-MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &tempHighTempNightAlarm_item, &tempLowTempNightAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item,  &phLowPhAlarm_item, &phHighPhAlarm_item, &ecLowEcAlarm_item, &ecHighEcAlarm_item, &externalModeAlarm_item};
+MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighTempNightAlarm_item, &tempLowTempNightAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item,  &phLowPhAlarm_item, &phHighPhAlarm_item, &ecLowEcAlarm_item, &ecHighEcAlarm_item, &externalModeAlarm_item};
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -1190,6 +1254,9 @@ void loadEEPROM() {
 
     read(EXTERNALMODEALARM_ADDR, externalModeAlarm);
 
+    read(HUMIHIGHALARM_ADDR, humiHighAlarm);
+    read(HUMILOWALARM_ADDR, humiLowAlarm);
+
     for(int i=0; i < 16; i++) {
          OMEEPROM::read(GSMNUMBER_ADDR + i, *(gsmNumber+i));
     }
@@ -1283,6 +1350,11 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(ECLOWY_ADDR, ecLowY);
     OMEEPROM::write(ECHIGHY_ADDR, ecHighY);
 
+    humiLowAlarm = 0.0;
+    humiHighAlarm = 100.0;
+    OMEEPROM::write(HUMIHIGHALARM_ADDR, humiHighAlarm);
+    OMEEPROM::write(HUMILOWALARM_ADDR, humiLowAlarm);
+
     /*
     int iZero = 0;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, iZero);
@@ -1310,7 +1382,9 @@ void saveDefaultEEPROM() {
 //////////////////////////////////
 void setup() {
 
-	pinMode(ECINPUTPIN ,INPUT);
+	//oneWireSensors.begin();
+
+	pinMode(ECINPUTPIN ,INPUT_PULLUP);
 	pinMode(ECENABLEPIN ,OUTPUT);
 
 	pinMode(EXTPIN, INPUT);
@@ -1413,6 +1487,23 @@ double calcEC(long lowPulseTime, long highPulseTime) {
   return ec;
 }
 
+
+bool parseCmd(String &text, const char* cmd, byte &mode, const int address=0) {
+	//int pos = text.indexOf("#L");
+	int pos = text.indexOf(cmd);
+	if(pos > -1) {
+		//Serial.println("LIGHT");
+		char ch = text.charAt(pos+2);
+		if(ch=='A') mode = 0;
+		else if(ch=='0') mode = 1;
+		else if(ch=='1') mode = 2;
+		if(address)
+			OMEEPROM::write(address, mode);
+		return true;
+	}
+	return false;
+}
+
 /*
 void getInstrumentString(bool a, byte mode, char* b) {
 	//TODO is it safe?
@@ -1485,6 +1576,11 @@ void loop() {
 	// second counter
 	//if(now.secondstime() > secondstime) {
 	if(secondsCounter + 1000 < milliseconds || milliseconds < secondsCounter) {
+
+		//TODO: too slow
+		//oneWireSensors.requestTemperatures(); // Send the command to get temperatures
+		//temperature2 = oneWireSensors.getTempCByIndex(0);
+		temperature2 = getTemp(oneWire);
 
 		if(lightAuto) {
 			lightOnDuration++;
@@ -1669,8 +1765,13 @@ void loop() {
 
 	light = analogRead(LIGHTPIN, SAMPLES) / 10.23;
 	extana = analogRead(EXTANAPIN, SAMPLES) / 10.23;
+	powerana = analogRead(POWERANAPIN, SAMPLES) / 10.23;
 	ph = calcPH(analogRead(PHANAPIN, SAMPLES));
 	//ph = analogRead(PHANAPIN, SAMPLES);
+
+	//oneWireSensors.requestTemperatures(); // Send the command to get temperatures
+	//temperature2 = oneWireSensors.getTempCByIndex(0);
+	//temperature2 = getTemp();
 
 	/*
 	//TODO: not measure every loop
@@ -1757,12 +1858,12 @@ void loop() {
 	}
 
 	if(tempHighAlarm2.activate(temperature > tempHigh))
-		saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_ON);
 	if(tempHighAlarm2.deactivate(temperature < (tempHigh - tempHysteresis)))
 		saveMessage(MESSAGE_ALARM_TEMPHIGH, MESSAGE_ALARM_OFF);
 
 	if(tempLowAlarm2.activate(temperature < tempLow))
-		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_ON);
 	if(tempLowAlarm2.deactivate(temperature > (tempLow + tempHysteresis)))
 		saveMessage(MESSAGE_ALARM_TEMPLOW, MESSAGE_ALARM_OFF);
 
@@ -1781,6 +1882,8 @@ void loop() {
 		// alarm in 0
 		externalAlarm = !externalAlarm;
 	}
+
+
 	//else if (externalModeAlarm == 1) {
 		// alarm in 1
 		//externalAlarm = externalAlarm;
@@ -1796,26 +1899,41 @@ void loop() {
 	if(externalAlarm2.deactivate(!externalAlarm))
 		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_OFF);
 
+	byte powerAlarm = powerana > 50; //digitalRead(EXTPIN);
+	if(powerAlarm2.activate(powerAlarm))
+		saveMessage(MESSAGE_ALARM_POWER, MESSAGE_ALARM_ON);
+	if(powerAlarm2.deactivate(!powerAlarm))
+		saveMessage(MESSAGE_ALARM_POWER, MESSAGE_ALARM_OFF);
 
 	if(phHighAlarm2.activate(ph > phHighPhAlarm))
-		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);
 	if(phHighAlarm2.deactivate(ph < (phHighPhAlarm - phHysteresis)))
 		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_OFF);
 
 	if(phLowAlarm2.activate(ph < phLowPhAlarm))
-		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);
 	if(phLowAlarm2.deactivate(ph > (phLowPhAlarm + phHysteresis)))
 		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_OFF);
 
 	if(ecHighAlarm2.activate(ec > ecHighEcAlarm))
-		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);
 	if(ecHighAlarm2.deactivate(ec < (ecHighEcAlarm - ecHysteresis)))
 		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_OFF);
 
 	if(ecLowAlarm2.activate(ec < ecLowEcAlarm))
-		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);;
+		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);
 	if(ecLowAlarm2.deactivate(ec > (ecLowEcAlarm + ecHysteresis)))
 		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_OFF);
+
+	if(humiHighAlarm2.activate(humidity > humiHighAlarm))
+		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_ON);
+	if(humiHighAlarm2.deactivate(humidity < (humiHighAlarm - humiHysteresis)))
+		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_OFF);
+
+	if(humiLowAlarm2.activate(humidity < humiLowAlarm))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
+	if(humiLowAlarm2.deactivate(humidity > (humiLowAlarm + humiHysteresis)))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 
 	if(kpd.getKeys()) {
 		tempHighAlarm2.ack();
@@ -1827,7 +1945,10 @@ void loop() {
 		phLowAlarm2.ack();
 		ecHighAlarm2.ack();
 		ecLowAlarm2.ack();
-    }
+		humiHighAlarm2.ack();
+		humiLowAlarm2.ack();
+		powerAlarm2.ack();
+	}
 
 	//TEST
 	//digitalWrite(LEDPIN, cyclerControl);
@@ -1845,19 +1966,39 @@ void loop() {
   	if (Serial.available() > 0) {
   		// read the incoming byte:
   		//incomingByte = Serial.read();
-  		if (Serial.readString().indexOf("?")!=-1 ) {
+
+  		String text = Serial.readString();
+  		//parseCmd(text, "#L", lightMode);
+  		parseCmd(text, MESSAGE_CMD_LIGHT, lightMode);
+  		parseCmd(text, MESSAGE_CMD_HEATER, heaterMode);
+  		parseCmd(text, MESSAGE_CMD_FAN, fanMode);
+  		parseCmd(text, MESSAGE_CMD_CYCLER, cyclerMode);
+
+
+  		if (text.indexOf("?")!=-1 ) {
+  		//if (Serial.readString().indexOf("?")!=-1 ) {
 
   			Serial.println(F("OK"));
 
   			Serial.print(MESSAGE_TEMP);
-  			Serial.print(temperature);
+  			Serial.println(temperature);
   			Serial.print(MESSAGE_HUMI);
-  			Serial.print(humidity);
+  			Serial.println(humidity);
   			Serial.print(MESSAGE_LIGHT);
-  			Serial.print(light);
+  			Serial.println(light);
   			Serial.print(MESSAGE_EXT);
   			//Serial.print(digitalRead(EXTPIN));
-  			Serial.print(extana);
+  			Serial.println(extana);
+  			Serial.print(MESSAGE_POWER);
+  			Serial.println(powerana);
+
+  			Serial.print(MESSAGE_PH);
+  			Serial.println(ph);
+  			Serial.print(MESSAGE_EC);
+  			Serial.println(ec);
+  			Serial.print(MESSAGE_TEMP2);
+  			Serial.println(temperature2);
+
   			Serial.println();
 
   			//infoSerial((Stream*)&Serial);
@@ -2037,7 +2178,7 @@ void uiScreen() {
 		if(key == KPD_DOWN)
 			uiPage++;
 		uiPage = max(0, uiPage);
-		uiPage = min(4, uiPage);
+		uiPage = min(5, uiPage);
 
 		//TODO:
 		//lcd.clear();
@@ -2049,7 +2190,7 @@ void uiScreen() {
 			lcd.print(temperature);
 			uiLcdPrintSpaces8();
 			lcd.setCursor(0, 1);
-			uiLcdPrintAlarm(false, false);
+			uiLcdPrintAlarm(humiHighAlarm2.active, humiLowAlarm2.active);
 			lcd.print(F("HUMI[%]:"));
 			lcd.print(humidity);
 			uiLcdPrintSpaces8();
@@ -2074,7 +2215,7 @@ void uiScreen() {
 			uiLcdPrintSpaces8();
 			lcd.setCursor(0, 1);
 			uiLcdPrintAlarm(false, externalAlarm2.active);
-			lcd.print(F("POWER[%]:"));
+			lcd.print(F("EXT  [%]:"));
 			lcd.print(int(extana));
 			uiLcdPrintSpaces8();
 		}
@@ -2095,6 +2236,18 @@ void uiScreen() {
 		}
 		else if(uiPage == 4) {
 			lcd.setCursor(0, 0);
+			uiLcdPrintAlarm(false, false);
+			lcd.print(F("TEMP2[C]:"));
+			lcd.print(temperature2);
+			uiLcdPrintSpaces8();
+			lcd.setCursor(0, 1);
+			uiLcdPrintAlarm(false, powerAlarm2.active);
+			lcd.print(F("POWER[%]:"));
+			lcd.print(int(powerana));
+			uiLcdPrintSpaces8();
+		}
+		else if(uiPage == 5) {
+			lcd.setCursor(0, 0);
 			if(lightAuto) {
 				lcd.print(F(" DAY *  "));
 				uiLcdPrintSpaces8();
@@ -2104,7 +2257,6 @@ void uiScreen() {
 				uiLcdPrintSpaces8();
 			}
 			lcd.setCursor(0, 1);
-			//lcd.print(F(" GROWMAT EASY HY"));
 			uiLcdPrintSpaces8();
 			uiLcdPrintSpaces8();
 		}
@@ -2288,7 +2440,7 @@ void uiMain() {
 
 //if(uiPage==0) {
 
-	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck || phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck) {
+	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck || phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck || humiHighAlarm2.unAck || humiLowAlarm2.unAck || powerAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
 	}
 	else {
@@ -2438,3 +2590,52 @@ void uiQwkScreen() {
 	lcd.clear();
 }
 */
+
+float getTemp(OneWire ds){
+ //returns the temperature from one DS18S20 in DEG Celsius
+
+ byte data[12];
+ byte addr[8];
+
+ if ( !ds.search(addr)) {
+   //no more sensors on chain, reset search
+   ds.reset_search();
+   return -1000;
+ }
+
+ if ( OneWire::crc8( addr, 7) != addr[7]) {
+   Serial.println("CRC is not valid!");
+   return -1000;
+ }
+
+ if ( addr[0] != 0x10 && addr[0] != 0x28) {
+   Serial.print("Device is not recognized");
+   return -1000;
+ }
+
+ ds.reset();
+ ds.select(addr);
+ ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+ delay(750); // Wait for temperature conversion to complete
+
+ byte present = ds.reset();
+ ds.select(addr);
+ ds.write(0xBE); // Read Scratchpad
+
+
+ for (int i = 0; i < 9; i++) { // we need 9 bytes
+  data[i] = ds.read();
+ }
+
+ ds.reset_search();
+
+ byte MSB = data[1];
+ byte LSB = data[0];
+
+ float tempRead = ((MSB << 8) | LSB); //using two's compliment
+ float TemperatureSum = tempRead / 16;
+
+ return TemperatureSum;
+
+}
