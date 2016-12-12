@@ -326,13 +326,13 @@ Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAl
 
 
 #include "libraries/OneWire/OneWire.h"
-//#include "libraries/DallasTemperature/DallasTemperature.h"
+#include "libraries/DallasTemperature/DallasTemperature.h"
 //#define ONEWIREBUSPIN 2
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONEWIREBUSPIN);
 // Pass our oneWire reference to Dallas Temperature.
-//DallasTemperature oneWireSensors(&oneWire);
+DallasTemperature oneWireSensors(&oneWire);
 
 #include <Wire.h>
 
@@ -1382,7 +1382,7 @@ void saveDefaultEEPROM() {
 //////////////////////////////////
 void setup() {
 
-	//oneWireSensors.begin();
+	oneWireSensors.begin();
 
 	pinMode(ECINPUTPIN ,INPUT_PULLUP);
 	pinMode(ECENABLEPIN ,OUTPUT);
@@ -1567,6 +1567,7 @@ void infoSerial(Stream* ser) {
 unsigned long millisecondsGsm;
 unsigned long lightOnDuration, lightOffDuration; //day / night
 bool lightControlLast, heaterControlLast, fanControlLast, cyclerControlLast;
+//bool newSecond;
 
 void loop() {
 	//gsmMode = 0;
@@ -1575,12 +1576,31 @@ void loop() {
 	milliseconds = millis();
 	// second counter
 	//if(now.secondstime() > secondstime) {
+	//newSecond = false;
 	if(secondsCounter + 1000 < milliseconds || milliseconds < secondsCounter) {
+		//newSecond = true;
 
-		//TODO: too slow
-		//oneWireSensors.requestTemperatures(); // Send the command to get temperatures
-		//temperature2 = oneWireSensors.getTempCByIndex(0);
-		temperature2 = getTemp(oneWire);
+
+		//TODO:
+
+		if (secondsCounter % 10 == 0) {
+			oneWireSensors.requestTemperatures(); // Send the command to get temperatures
+			temperature2 = oneWireSensors.getTempCByIndex(0);
+			//temperature2 = getTemp(oneWire);
+			//temperature2 = getTemp();
+		}
+		else {
+			float t0, h0;
+			t0 = dht.readTemperature();
+			h0 = dht.readHumidity();
+			if(!isnan(t0)) temperature = t0;
+			if(!isnan(h0)) humidity = h0;
+			light = analogRead(LIGHTPIN, SAMPLES) / 10.23;
+			extana = analogRead(EXTANAPIN, SAMPLES) / 10.23;
+			powerana = analogRead(POWERANAPIN, SAMPLES) / 10.23;
+			ph = calcPH(analogRead(PHANAPIN, SAMPLES));
+			ec = calcEC(pulseIn(ECINPUTPIN, LOW), pulseIn(ECINPUTPIN, HIGH));
+		}
 
 		if(lightAuto) {
 			lightOnDuration++;
@@ -1744,55 +1764,25 @@ void loop() {
 	//////////////////////////////////
 	// inputs
 	//////////////////////////////////
-	float t0, h0;
+/*
 	t0 = dht.readTemperature();
 	h0 = dht.readHumidity();
 	if(!isnan(t0)) temperature = t0;
 	if(!isnan(h0)) humidity = h0;
-
-	/*
-	for(int i = 0; i < 100; i++)
-  		light += analogRead((unsigned char)LIGHTPIN) / 10;
-  	light /= 100;
-  	light = 100 - light;
-  	light = max(0, light);
-	light = min(99, light);
-
-	for(int i = 0; i < 100; i++)
-		extana += analogRead(EXTANAPIN);
-	extana /=100;
-	*/
 
 	light = analogRead(LIGHTPIN, SAMPLES) / 10.23;
 	extana = analogRead(EXTANAPIN, SAMPLES) / 10.23;
 	powerana = analogRead(POWERANAPIN, SAMPLES) / 10.23;
 	ph = calcPH(analogRead(PHANAPIN, SAMPLES));
 	//ph = analogRead(PHANAPIN, SAMPLES);
+	ec = calcEC(pulseIn(ECINPUTPIN, LOW), pulseIn(ECINPUTPIN, HIGH));
 
 	//oneWireSensors.requestTemperatures(); // Send the command to get temperatures
 	//temperature2 = oneWireSensors.getTempCByIndex(0);
 	//temperature2 = getTemp();
+*/
 
-	/*
-	//TODO: not measure every loop
-	long highPulseTime = 0;
-	long lowPulseTime = 0;
-	//long pulseTime = 0;
-	digitalWrite(ECENABLEPIN, HIGH); // power up the sensor
-	//delay(100);
-	for(unsigned int j = 0; j < SAMPLES; j++){
-		highPulseTime += pulseIn(ECINPUTPIN, HIGH);
-		//if (j == 0 and highPulseTime == 0)
-	    //    return MINVALUE;
-	    lowPulseTime += pulseIn(ECINPUTPIN, LOW);
-	}
-	//digitalWrite(ECENABLEPIN, LOW);
-	lowPulseTime = lowPulseTime / SAMPLES;
-	highPulseTime = highPulseTime / SAMPLES;
-	//pulseTime = (lowPulseTime + highPulseTime) / 2 + 2;
-	ec = calcEC(lowPulseTime, highPulseTime);
-	*/
-	ec = calcEC(pulseIn(ECINPUTPIN, LOW), pulseIn(ECINPUTPIN, HIGH));
+
 
 
 	//////////////////////////////////
@@ -1899,7 +1889,7 @@ void loop() {
 	if(externalAlarm2.deactivate(!externalAlarm))
 		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_OFF);
 
-	byte powerAlarm = powerana > 50; //digitalRead(EXTPIN);
+	byte powerAlarm = powerana < 50; //digitalRead(EXTPIN);
 	if(powerAlarm2.activate(powerAlarm))
 		saveMessage(MESSAGE_ALARM_POWER, MESSAGE_ALARM_ON);
 	if(powerAlarm2.deactivate(!powerAlarm))
@@ -1935,7 +1925,7 @@ void loop() {
 	if(humiLowAlarm2.deactivate(humidity > (humiLowAlarm + humiHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 
-	if(kpd.getKeys()) {
+	if(kpd.getRawKey()) {
 		tempHighAlarm2.ack();
 		tempLowAlarm2.ack();
 		lightHighAlarm2.ack();
@@ -2034,8 +2024,10 @@ void loop() {
   			Serial.print(gsmNumber);
   			Serial.print(' ');
   			Serial.print(gsmCode);
-  			Serial.println();
 
+  			Serial.println();
+  			Serial.println();
+  			//Serial.println();
   			/*
   			//TODO NO MEMEORY !!!
   			Serial.println();
