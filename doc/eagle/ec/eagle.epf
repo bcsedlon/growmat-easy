@@ -346,22 +346,14 @@ UsedLibrary="C:/EAGLE-7.5.0/lbr/xilinx-xc9.lbr"
 UsedLibrary="C:/EAGLE-7.5.0/lbr/xilinx-xcv.lbr"
 UsedLibrary="C:/EAGLE-7.5.0/lbr/zetex.lbr"
 UsedLibrary="C:/EAGLE-7.5.0/lbr/zilog.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/TP4056 charging module with protection.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/DC-DC step up.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/keypad_4x4_raw.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/i2c.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/HD44780LCD.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/diy-modules.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/E14_Arduino_revC.lbr"
-UsedLibrary="C:/EAGLE-7.5.0/lbr/bcsedlon/SIM800L_EVB.lbr"
 
 [Win_1]
 Type="Schematic Editor"
-Loc="0 0 1919 1095"
-State=1
+Loc="-4 -24 595 375"
+State=0
 Number=1
-File="growmat_easy.sch"
-View="-74.1802 0.721119 385.94 296.513"
+File="ec.sch"
+View="-18.4312 -0.651159 385.253 270.953"
 WireWidths=" 0 0.3048 0.6096 0.8128 1.016 1.27 1.4224 1.6764 1.778 1.9304 2.1844 2.54 3.81 6.4516 0.4064 0.1524"
 PadDiameters=" 0.254 0.3048 0.4064 0.6096 0.8128 1.016 1.27 1.4224 1.6764 1.778 1.9304 2.1844 2.54 3.81 6.4516 0"
 PadDrills=" 0.5 0.6 0.7 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 2 2.2 2.8 3.2 0.8"
@@ -377,7 +369,7 @@ DimensionExtWidths=" 0.127 0.254 0.1 0.13 0.26 0"
 DimensionExtLengths=" 1.27 2.54 1 2 3 0"
 DimensionExtOffsets=" 1.27 2.54 1 2 3 0"
 SmdSizes=" 0.3048 0.1524 0.4064 0.2032 0.6096 0.3048 0.8128 0.4064 1.016 0.508 1.27 0.6604 1.4224 0.7112 1.6764 0.8128 1.778 0.9144 1.9304 0.9652 2.1844 1.0668 2.54 1.27 3.81 1.9304 5.08 2.54 6.4516 3.2512 1.27 0.635"
-WireBend=4
+WireBend=0
 WireBendSet=31
 WireCap=1
 MiterStyle=0
@@ -400,8 +392,7 @@ ArcDirection=0
 AddLevel=2
 PadsSameType=0
 Layer=91
-Views=" 1: -187.451 -178.02 272.669 117.77 2: -74.1802 0.721119 385.94 296.513"
-Sheet="2"
+Sheet="1"
 
 [Win_2]
 Type="Control Panel"
