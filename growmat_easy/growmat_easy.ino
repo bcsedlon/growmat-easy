@@ -47,8 +47,11 @@ const byte KPD_COLS = 4;
 #define ECENABLEPIN 3
 
 #define PHANAPIN A1
+//#define PHTAPPIN A4
+//#define PHTDPIN
 
-
+#define SR04TXPIN 12
+#define SR04RXPIN 13
 
 #define SAMPLES 10
 
@@ -106,6 +109,9 @@ const byte KPD_COLS = 4;
 #define HUMIHIGHALARM_ADDR 156
 #define HUMILOWALARM_ADDR 160
 
+#define LEVELHIGHALARM_ADDR 164
+#define LEVELLOWALARM_ADDR 168
+
 #define EXTERNALMODEALARM_ADDR 196
 
 #define GSMNUMBER_ADDR 200  //16 bytes
@@ -130,6 +136,8 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_ECLOW     "dd/mm hh:mm EC-x"
 #define MESSAGE_ALARM_HUMIHIGH	"dd/mm hh:mm H +x"
 #define MESSAGE_ALARM_HUMILOW   "dd/mm hh:mm H -x"
+#define MESSAGE_ALARM_LEVELHIGH	"dd/mm hh:mm D +x"
+#define MESSAGE_ALARM_LEVELLOW  "dd/mm hh:mm D -x"
 #define MESSAGE_ALARM_POWER     "dd/mm hh:mm PW x"
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
@@ -142,6 +150,8 @@ const byte KPD_COLS = 4;
 #define MESSAGE_HUMIHIGH "T+!"
 #define MESSAGE_HUMILOW "T-!"
 #define MESSAGE_POWERLOW "PW!"
+#define MESSAGE_LEVELHIGH "D+!"
+#define MESSAGE_LEVELLOW "D-!"
 
 #define MESSAGE_TEMP "TA="
 #define MESSAGE_HUMI "HA="
@@ -152,6 +162,7 @@ const byte KPD_COLS = 4;
 #define MESSAGE_PH  "PH="
 #define MESSAGE_EC  "EC="
 #define MESSAGE_POWER "PW="
+#define MESSAGE_LEVEL "LV="
 
 #define MESSAGE_CMD_LIGHT  "#L"
 #define MESSAGE_CMD_HEATER  "#H"
@@ -216,12 +227,14 @@ unsigned int cyclerOnMin, cyclerOnSec, cyclerOffMin, cyclerOffSec;
 float tempHighTempAlarm, tempLowTempAlarm, lightHighValueAlarm, lightLowValueAlarm, tempHighTempNightAlarm, tempLowTempNightAlarm;
 float phHighPhAlarm, phLowPhAlarm, ecHighEcAlarm, ecLowEcAlarm;//, temp2HighTempAlarm, temp2LowTempAlarm, levelHighAlarm, levelLowAlarm;
 float humiHighAlarm, humiLowAlarm;
+float levelHighAlarm, levelLowAlarm;
 
 float tempHysteresis = 0.5;
 float lightHysteresis = 10;
 float phHysteresis = 0.2;
 float ecHysteresis = 0.2;
 float humiHysteresis = 0.5;
+float levelHysteresis = 0.5;
 
 unsigned long lightOnOffDelay = 1800; //seconds, 0.5h
 //float tempDayNightDelay = 60.0;
@@ -322,7 +335,8 @@ class Alarm {
 	}
 };
 
-Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2, phHighAlarm2, phLowAlarm2, ecHighAlarm2, ecLowAlarm2, humiHighAlarm2, humiLowAlarm2, powerAlarm2;
+Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAlarm2, phHighAlarm2, phLowAlarm2,
+	ecHighAlarm2, ecLowAlarm2, humiHighAlarm2, humiLowAlarm2, powerAlarm2, levelHighAlarm2, levelLowAlarm2;
 
 
 #include "libraries/OneWire/OneWire.h"
@@ -565,6 +579,8 @@ public:
 						if(externalAlarm2.active) sim->sendSmsTextLn(MESSAGE_EXTERNAL);
 						if(humiHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_HUMIHIGH);
 						if(humiLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_HUMILOW);
+						if(levelHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_LEVELHIGH);
+						if(levelLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_LEVELLOW);
 						if(powerAlarm2.active) sim->sendSmsTextLn(MESSAGE_POWERLOW);
 
 						//sim->sendSmsTextT(10);
@@ -1060,6 +1076,11 @@ MENU_VALUE humiLowAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&
 MENU_VALUE humiHighAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&humiHighAlarm), HUMIHIGHALARM_ADDR };
 MENU_ITEM humiLowAlarm_item  =    { {"HUMI LOW    [%]"},  ITEM_VALUE,  0,        MENU_TARGET(&humiLowAlarm_value) };
 MENU_ITEM humiHighAlarm_item   =  { {"HUMI HIGH   [%]"},   ITEM_VALUE,  0,        MENU_TARGET(&humiHighAlarm_value) };
+
+MENU_VALUE levelLowAlarm_value =	   { TYPE_FLOAT,      0,    -200,     MENU_TARGET(&levelLowAlarm), LEVELLOWALARM_ADDR };
+MENU_VALUE levelHighAlarm_value =	   { TYPE_FLOAT,      0,    -200,     MENU_TARGET(&levelHighAlarm), LEVELHIGHALARM_ADDR };
+MENU_ITEM levelLowAlarm_item  =    { {"LEVEL LOW  [CM]"},  ITEM_VALUE,  0,        MENU_TARGET(&levelLowAlarm_value) };
+MENU_ITEM levelHighAlarm_item   =  { {"LEVEL HIGH [CM]"},   ITEM_VALUE,  0,        MENU_TARGET(&levelHighAlarm_value) };
 //TODO !!!
 
 //                                "123456789ABCDEF"
@@ -1071,7 +1092,8 @@ MENU_ITEM lightLowValueAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        M
 MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 2,    0,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
 MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
 
-MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighTempNightAlarm_item, &tempLowTempNightAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item,  &phLowPhAlarm_item, &phHighPhAlarm_item, &ecLowEcAlarm_item, &ecHighEcAlarm_item, &externalModeAlarm_item};
+MENU_LIST const submenu_list5[] = { &tempHighTempAlarm_item, &tempLowTempAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighTempNightAlarm_item, &tempLowTempNightAlarm_item, &lightHighValueAlarm_item, &lightLowValueAlarm_item,
+			&phLowPhAlarm_item, &phHighPhAlarm_item, &ecLowEcAlarm_item, &ecHighEcAlarm_item,  &levelLowAlarm_item, &levelHighAlarm_item, &externalModeAlarm_item};
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -1256,6 +1278,8 @@ void loadEEPROM() {
 
     read(HUMIHIGHALARM_ADDR, humiHighAlarm);
     read(HUMILOWALARM_ADDR, humiLowAlarm);
+    read(LEVELHIGHALARM_ADDR, levelHighAlarm);
+    read(LEVELLOWALARM_ADDR, levelLowAlarm);
 
     for(int i=0; i < 16; i++) {
          OMEEPROM::read(GSMNUMBER_ADDR + i, *(gsmNumber+i));
@@ -1355,6 +1379,11 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(HUMIHIGHALARM_ADDR, humiHighAlarm);
     OMEEPROM::write(HUMILOWALARM_ADDR, humiLowAlarm);
 
+
+    levelLowAlarm = -200.0;
+    levelHighAlarm = 0.0;
+    OMEEPROM::write(LEVELHIGHALARM_ADDR, levelHighAlarm);
+    OMEEPROM::write(LEVELLOWALARM_ADDR, levelLowAlarm);
     /*
     int iZero = 0;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, iZero);
@@ -1383,6 +1412,11 @@ void saveDefaultEEPROM() {
 void setup() {
 
 	oneWireSensors.begin();
+
+	pinMode(SR04RXPIN, INPUT);
+	pinMode(SR04TXPIN, OUTPUT);
+
+
 
 	pinMode(ECINPUTPIN ,INPUT_PULLUP);
 	pinMode(ECENABLEPIN ,OUTPUT);
@@ -1600,6 +1634,22 @@ void loop() {
 			powerana = analogRead(POWERANAPIN, SAMPLES) / 10.23;
 			ph = calcPH(analogRead(PHANAPIN, SAMPLES));
 			ec = calcEC(pulseIn(ECINPUTPIN, LOW), pulseIn(ECINPUTPIN, HIGH));
+
+
+			//level =
+			digitalWrite(SR04TXPIN, LOW);
+			delayMicroseconds(2);
+			digitalWrite(SR04TXPIN, HIGH);
+			delayMicroseconds(10);
+			digitalWrite(SR04TXPIN, LOW);
+			long duration = pulseIn(SR04RXPIN, HIGH);
+			//Calculate the distance (in cm) based on the speed of sound.
+			float distance = duration / 58.2;
+			if (distance >= 200 || distance <= 0){
+				//out of range
+				distance = NAN;
+			}
+			level = -distance;
 		}
 
 		if(lightAuto) {
@@ -1925,6 +1975,16 @@ void loop() {
 	if(humiLowAlarm2.deactivate(humidity > (humiLowAlarm + humiHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 
+	if(levelHighAlarm2.activate(level > levelHighAlarm))
+		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_ON);
+	if(levelHighAlarm2.deactivate(level < (levelHighAlarm - levelHysteresis)))
+		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_OFF);
+
+	if(levelLowAlarm2.activate(level < levelLowAlarm))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
+	if(levelLowAlarm2.deactivate(level > (levelLowAlarm + levelHysteresis)))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
+
 	if(kpd.getRawKey()) {
 		tempHighAlarm2.ack();
 		tempLowAlarm2.ack();
@@ -1937,6 +1997,8 @@ void loop() {
 		ecLowAlarm2.ack();
 		humiHighAlarm2.ack();
 		humiLowAlarm2.ack();
+		levelHighAlarm2.ack();
+		levelLowAlarm2.ack();
 		powerAlarm2.ack();
 	}
 
@@ -1988,7 +2050,8 @@ void loop() {
   			Serial.println(ec);
   			Serial.print(MESSAGE_TEMP2);
   			Serial.println(temperature2);
-
+  			Serial.print(MESSAGE_LEVEL);
+  			Serial.println(level);
   			Serial.println();
 
   			//infoSerial((Stream*)&Serial);
@@ -2249,7 +2312,9 @@ void uiScreen() {
 				uiLcdPrintSpaces8();
 			}
 			lcd.setCursor(0, 1);
-			uiLcdPrintSpaces8();
+			uiLcdPrintAlarm(levelHighAlarm2.active, levelLowAlarm2.active);
+			lcd.print(F("LEVEL[CM]:"));
+			lcd.print(level);
 			uiLcdPrintSpaces8();
 		}
 		//delay(200);
@@ -2432,7 +2497,9 @@ void uiMain() {
 
 //if(uiPage==0) {
 
-	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck || phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck || humiHighAlarm2.unAck || humiLowAlarm2.unAck || powerAlarm2.unAck) {
+	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck
+			|| phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck || humiHighAlarm2.unAck || humiLowAlarm2.unAck
+			|| powerAlarm2.unAck || levelHighAlarm2.unAck || levelLowAlarm2.unAck) {
 		secToggle ? lcd.backlight() : lcd.noBacklight();
 	}
 	else {
