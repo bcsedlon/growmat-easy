@@ -270,16 +270,11 @@ public:
 
 class Alarm {
 
-	//long timeActive;
-	//long timeDeactive;
 	unsigned long timeActive;
 	unsigned long timeDeactive;
 
  public:
-
-
 	// TODO: fix when millis overrun!!!
-	//int delay = 5;
 	int alarmActiveDelay = 5000;
 	int alarmDeactiveDelay = 5000;
 	bool active;
@@ -289,10 +284,8 @@ class Alarm {
 		if(state) {
 			if(!active) {
 				if(!timeActive)
-					timeActive = milliseconds;
-					//timeActive = secondstime;
-				if((timeActive + alarmActiveDelay) < milliseconds) {
-				//if((timeActive + delay) < secondstime) {
+					timeActive = millis();
+				if((timeActive + alarmActiveDelay) < millis()) {
 					active = true;
 					unAck = true;
 					timeActive = 0;
@@ -310,10 +303,8 @@ class Alarm {
 		if(state){
 			if(active) {
 				if(!timeDeactive)
-					timeDeactive = milliseconds;
-					//timeDeactive = secondstime;
-				if((timeDeactive + alarmDeactiveDelay) < milliseconds) {
-				//if((timeDeactive + delay) < secondstime) {
+					timeDeactive = millis();
+				if((timeDeactive + alarmDeactiveDelay) < millis()) {
 					active = false;
 					timeDeactive = 0;
 					return true;
@@ -338,9 +329,7 @@ Alarm tempHighAlarm2, tempLowAlarm2, lightHighAlarm2, lightLowAlarm2, externalAl
 #include "libraries/DallasTemperature/DallasTemperature.h"
 //#define ONEWIREBUS_PIN 2
 
-// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONEWIREBUS_PIN);
-// Pass our oneWire reference to Dallas Temperature.
 DallasTemperature oneWireSensors(&oneWire);
 
 #include <Wire.h>
@@ -353,15 +342,8 @@ DallasTemperature oneWireSensors(&oneWire);
 class Sim800l2 : public Sim800l {
 
 public:
-	/*
-	Sim800l2() : Sim800l() {
-		//TODO TEST !!!
-		na = true;
-    };
-    */
 
 	bool Sim800l2::sendSmsBegin(char* number){
-
 		printSerial("AT+CMGF=1\r"); //set sms to text mode
 	    _buffer=_readSerial();
 	    printSerial("AT+CMGS=\"");  // command to send sms
@@ -377,14 +359,14 @@ public:
 		printSerial(value);
 	}
 	*/
-	void Sim800l2::sendSmsText(char* s) {
-		printSerial(s);
-	}
+
 	void Sim800l2::sendSmsTextLn(char* s) {
 		printSerial(s);
 		printSerial('\n');
 	}
-
+	void Sim800l2::sendSmsText(char* s) {
+		printSerial(s);
+	}
 	void Sim800l2::sendSmsText(char ch) {
 		printSerial(ch);
 	}
@@ -408,19 +390,19 @@ public:
 	}
 };
 
-Sim800l sim800l;  //to declare the library
-
+// TODO: ???
+//Sim800l sim800l;  //to declare the library
+Sim800l2 sim800l;  //to declare the library
 
 class GsmManager {
+
 public:
 	Sim800l2* sim;
 	//uint8_t callStatus;
 	//00420123456789
 
 	char* gsmNumber;
-	//String code;
 	int* gsmCode;
-	//String response = String("");
 
 	//unsigned long callDuration;
 	unsigned long millisecondsCall;
@@ -438,28 +420,20 @@ public:
 	*/
 
 	void call(){
-		//if(!callDuration) {
 		if(!millisecondsCall && gsmMode > 1) {
 			//Serial.println(F("CALL"));
 			Serial.println('C');
 			sim->callNumber(gsmNumber);
-			//callDuration= millis();
-			//secondsCall = secondstime;
 			millisecondsCall= milliseconds;
 		}
-
 	}
+
 	void updateCall() {
-		//return;
-		//callStatus = sim->getCallStatus();
 		// TODO: solve millis overflow
-		//if(callDuration && (callDuration + 30000 < millis())){
-		//if(secondsCall && (secondsCall + 30 < secondstime)){
 		if(millisecondsCall && (millisecondsCall + GSMCALLDURATION < milliseconds)){
 			//Serial.println(F("HANG"));
 			Serial.println('H');
 			sim->hangoffCall();
-			//callDuration = 0;
 			millisecondsCall = 0;
 		}
 	}
@@ -468,7 +442,6 @@ public:
 		// TODO: check if sim is busy
 		return sim->sendSms(gsmNumber, text);
 	}
-
 
 	bool proceedSMS() { //byte  *lightMode, byte *heaterMode,byte *fanMode,byte *cyclerMode) {
 
@@ -514,9 +487,6 @@ public:
 						OMEEPROM::write(GSMMODE_ADDR, gsmMode);
 					}
 
-
-
-
 					pos = text.indexOf("#L");
 					if(pos > -1) {
 						//Serial.println("LIGHT");
@@ -554,7 +524,7 @@ public:
 					pos = text.indexOf("#?");
 					if(pos > -1) {// && gsmMode > 1) {
 
-						//TODO
+						// TODO:
 						//char msg[256];// = "GROWMAT INFO";
 						//bool r = sim->sendSms(gsmNumber, msg);
 						Serial.println(F("SMS"));
@@ -565,7 +535,6 @@ public:
 						sim->sendSmsText("\n");
 						//sim->sendSmsText("TEST");
 						//sim->sendSmsEnd();
-
 
 						if(tempHighAlarm2.active) sim->sendSmsTextLn(MESSAGE_TEMPHIGH);
 						if(tempLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_TEMPLOW);
@@ -578,10 +547,6 @@ public:
 						if(levelLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_LEVELLOW);
 						if(powerAlarm2.active) sim->sendSmsTextLn(MESSAGE_POWERLOW);
 
-						//sim->sendSmsTextT(10);
-						//sim->sendSmsTextT(0.3);
-						//sim->sendSmsTextT("XD");
-						//sim->sendSmsTextT('!');
 						lightControl = getInstrumentControl(lightAuto, lightMode);
 						heaterControl = getInstrumentControl(heaterAuto, heaterMode);
 						fanControl = getInstrumentControl(fanAuto, fanMode);
@@ -625,7 +590,9 @@ public:
 						sim->sendSmsText(MESSAGE_EC);
 						sim->sendSmsText(ec);
 						sim->sendSmsText('\n');
-
+						sim->sendSmsText(MESSAGE_LEVEL);
+						sim->sendSmsText(level);
+						sim->sendSmsText('\n');
 
 						sim->sendSmsText(MESSAGE_GSM);
 						sim->sendSmsText(gsmMode);
@@ -635,18 +602,13 @@ public:
 						//sim->sendSmsText("\nGSM NUMBER=");
 						//sim->sendSmsText(gsmNumber);
 
-
-
-						//sim->sendSmsText("\n\n");
 						char msg[MESSAGELENGTH + 1];
 						for(int i = 0; i< MESSAGESCOUNT; i++) {
 						//for(int i = 0; i< 3; i++) {
 							sim->sendSmsText("\n");
 							readMessage(i, (byte*)msg);
 							sim->sendSmsText(msg);
-
-						 }
-
+						}
 
 						sim->sendSmsEnd();
 					}
@@ -655,131 +617,6 @@ public:
 		}
 		return false;
 	}
-
-
-
-	/*
-
-	return false;
-		//Serial.println("start proceedSMS");
-
-		/*
-		Serial.println("1");
-		Serial.println(sim->response1);
-		sim->writeSerial("AT+CMGR=21\r\n");
-		Serial.println("2");
-		Serial.println(sim->response1);
-		*/
-
-
-
-
-		//String text = sim->response1;
-
-		//Serial.print("SMS: ");
-		//Serial.println(text);
-
-		//Serial.println( text.indexOf("\n"));
-
-/*
-		for(int i = 0; i < 2; i++)
-			text = text.substring(text.indexOf("\n")+1);
-		text = text.substring(0, text.indexOf("\n")-1);
-		Serial.println(text);
-*/
-
-		//return false;
-		//String text;
-		//Serial.println(response);
-		//Serial.println("!");
-/*
-		String text=String("");
-		if(response.indexOf("CMGR:")!=-1) {
-			text = response.substring(response.indexOf("CMGR:")+5, response.lastIndexOf("\n")-1);
-		};
-		Serial.println(text);*/
-
-/*
-		int pos;
-		char ch;
-		Serial.println(text);
-		if(text != "") {
-			pos = text.indexOf("#CODE");
-			if(text.substring(pos+5, pos+9) == String(*gsmCode, DEC)) {
-				Serial.println("PASSWORD OK");
-				pos = text.indexOf("#00");
-				if(pos > -1) {
-					// save new gsm number
-					text.substring(pos+1).toCharArray(gsmNumber, 16, 0);
-					for(int i=0; i < 16; i++) {
-						OMEEPROM::write(GSMNUMBER_ADDR + i, gsmNumber[i]);
-					 }
-				}
-
-				pos = text.indexOf("#?");
-				if(pos > -1) {
-					//TODO
-					char* msg = "GROWMAT INFO";
-					bool r = sim->sendSms(gsmNumber, msg);
-
-					Serial.print("SMS INFO: ");
-					//delay(250);
-					//Serial.println(r);
-				}
-
-				pos = text.indexOf("#L");
-				if(pos > -1) {
-					//Serial.println("LIGHT");
-					ch = text.charAt(pos+2);
-					if(ch=='A')
-						*lightMode = 0;
-					else if(ch=='0') {
-						*lightMode = 1;
-						//lightControl = 0;
-					}
-					else if(ch=='1') {
-						*lightMode = 2;
-						//lightControl = 1;
-					}
-				}
-				pos = text.indexOf("#H");
-				if(pos > -1) {
-					ch = text.charAt(pos+2);
-					if(ch=='A')
-						*heaterMode = 0;
-					else if(ch=='0')
-						*heaterMode = 1;
-					else if(ch=='1')
-						*heaterMode = 2;
-				}
-				pos = text.indexOf("#V");
-				if(pos > -1) {
-					ch = text.charAt(pos+2);
-					if(ch=='A')
-						*fanMode = 0;
-					else if(ch=='0')
-						*fanMode = 1;
-					else if(ch=='1')
-						*fanMode = 2;
-				}
-				pos = text.indexOf("#C");
-				if(pos > -1) {
-					ch = text.charAt(pos+2);
-					if(ch=='A')
-						*cyclerMode = 0;
-					else if(ch=='0')
-						*cyclerMode = 1;
-					else if(ch=='1')
-						*cyclerMode = 2;
-				}
-			}
-			sim->delAllSms();
-		}
-		//Serial.println("finish proceedSMS");
-		return false;
-	};
-*/
-
 } gsmMgr(&sim800l, &gsmCode, gsmNumber);
 
 // RTC
@@ -798,7 +635,6 @@ class Keypad_I2C2 : public Keypad_I2C {
 	unsigned long kTime;
 
 public:
-
     Keypad_I2C2(char *userKeymap, byte *row, byte *col, byte numRows, byte numCols, byte address, byte width = 1) : Keypad_I2C(userKeymap, row, col, numRows, numCols, address, width) {
     };
 
@@ -908,10 +744,8 @@ LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 #include "libraries/OMEEPROM/OMEEPROM.h"
 #include "libraries/OMMenuMgr/OMMenuMgr.h"
 
-//static unsigned long kTime;
-//static char k;
-
 class OMMenuMgr2 : public OMMenuMgr {
+
 public:
 
     OMMenuMgr2(const OMMenuItem* c_first, uint8_t c_type, Keypad_I2C2* c_kpd) :OMMenuMgr( c_first, c_type) {
@@ -930,6 +764,7 @@ public:
     }
 
 private:
+
     Keypad_I2C2* kpd;
 };
 
@@ -983,7 +818,6 @@ MENU_ITEM fanOffTemp_item    ={ {"FAN OFF    [C]"},   ITEM_VALUE,  0,        MEN
 MENU_ITEM fanOnTempNight_item     ={ {"FAN ON  N  [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&fanOnTempNight_value) };
 MENU_ITEM fanOffTempNight_item    ={ {"FAN OFF N  [C]"},   ITEM_VALUE,  0,        MENU_TARGET(&fanOffTempNight_value) };
 
-
 MENU_SELECT cyclerMode_select = { &cyclerMode,           MENU_SELECT_SIZE(state_list),   MENU_TARGET(&state_list) };
 MENU_VALUE cyclerMode_value =   { TYPE_SELECT,     0,     0,     MENU_TARGET(&cyclerMode_select) };
 MENU_ITEM cyclerMode_item    = { {"CYCLER CONTROL"}, ITEM_VALUE,  0,        MENU_TARGET(&cyclerMode_value) };
@@ -1020,7 +854,6 @@ MENU_ITEM tempHighNightAlarm_item   ={ {"TEMP HIGH N [C]"},    ITEM_VALUE,  0,  
 MENU_VALUE tempLowNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowAlarm), TEMPLOWNIGHTALARM_ADDR };
 MENU_ITEM tempLowNightAlarm_item   ={ {"TEMP LOW  N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowNightAlarm_value) };
 
-
 //                               TYPE             MAX    MIN    TARGET
 MENU_VALUE phLowX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phLowX), PHLOWX_ADDR };
 MENU_VALUE phHighX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phHighX), PHHIGHX_ADDR };
@@ -1036,12 +869,12 @@ MENU_ITEM phHighY_item   =  { {"PH HIGH Y  [PH]"},   ITEM_VALUE,  0,        MENU
 MENU_LIST const submenu_list_ph[] = {&phLowX_item, &phLowY_item,  &phHighX_item, &phHighY_item};
 MENU_ITEM menu_submenu_ph = { {"PH->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ph),  MENU_TARGET(&submenu_list_ph) };
 
-
 //                               TYPE             MAX    MIN    TARGET
 MENU_VALUE ecLowX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecLowX), ECLOWX_ADDR };
 MENU_VALUE ecHighX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecHighX), ECHIGHX_ADDR };
 MENU_VALUE ecLowY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecLowY), ECLOWY_ADDR };
 MENU_VALUE ecHighY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecHighY), ECHIGHY_ADDR };
+
 //                                "123456789ABCDEF"
 MENU_ITEM ecLowX_item   =   { {"EC LOW  X   [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&ecLowX_value) };
 MENU_ITEM ecHighX_item   =  { {"EC HIGH X   [-]"},    ITEM_VALUE,  0,        MENU_TARGET(&ecHighX_value) };
@@ -1050,8 +883,6 @@ MENU_ITEM ecHighY_item   =  { {"EC HIGH Y [S/M]"},   ITEM_VALUE,  0,        MENU
 
 MENU_LIST const submenu_list_ec[] = {&ecLowX_item, &ecLowY_item,  &ecHighX_item, &ecHighY_item};
 MENU_ITEM menu_submenu_ec = { {"EC->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ec),  MENU_TARGET(&submenu_list_ec) };
-
-
 
 MENU_VALUE phLowAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowAlarm), PHLOWALARM_ADDR };
 MENU_VALUE phHighPhAlarm_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighPhAlarm), PHHIGHALARM_ADDR };
@@ -1063,7 +894,6 @@ MENU_VALUE ecHighAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&e
 MENU_ITEM ecLowAlarm_item  =    { {"EC LOW    [S/M]"},  ITEM_VALUE,  0,        MENU_TARGET(&ecLowAlarm_value) };
 MENU_ITEM ecHighAlarm_item   =  { {"EC HIGH   [S/M]"},   ITEM_VALUE,  0,        MENU_TARGET(&ecHighAlarm_value) };
 
-
 MENU_VALUE humiLowAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&humiLowAlarm), HUMILOWALARM_ADDR };
 MENU_VALUE humiHighAlarm_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&humiHighAlarm), HUMIHIGHALARM_ADDR };
 MENU_ITEM humiLowAlarm_item  =    { {"HUMI LOW    [%]"},  ITEM_VALUE,  0,        MENU_TARGET(&humiLowAlarm_value) };
@@ -1073,7 +903,6 @@ MENU_VALUE levelLowAlarm_value =	   { TYPE_FLOAT,      0,    -200,     MENU_TARG
 MENU_VALUE levelHighAlarm_value =	   { TYPE_FLOAT,      0,    -200,     MENU_TARGET(&levelHighAlarm), LEVELHIGHALARM_ADDR };
 MENU_ITEM levelLowAlarm_item  =    { {"LEVEL LOW  [CM]"},  ITEM_VALUE,  0,        MENU_TARGET(&levelLowAlarm_value) };
 MENU_ITEM levelHighAlarm_item   =  { {"LEVEL HIGH [CM]"},   ITEM_VALUE,  0,        MENU_TARGET(&levelHighAlarm_value) };
-//TODO !!!
 
 //                                "123456789ABCDEF"
 MENU_VALUE lightHighAlarm_value={ TYPE_FLOAT_10, 102,    0,    MENU_TARGET(&lightHighAlarm), LIGHTHIGHALARM_ADDR };
@@ -1095,14 +924,11 @@ MENU_ITEM gsmCode_item   ={ {"GSM CODE->"},    ITEM_VALUE,  0,        MENU_TARGE
 MENU_LIST const submenu_list6[] = { &gsmMode_item, &gsmCode_item};
 MENU_ITEM menu_submenu6 = { {"GSM->"},  ITEM_MENU,  MENU_SIZE(submenu_list6),  MENU_TARGET(&submenu_list6) };
 
-
 MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetClock) };
 //MENU_ITEM item_alarmList   = { {"ALARM LIST->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiAlarmList) };
 
-
 MENU_ITEM item_reset   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
 //MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
-
 
 //        List of items in menu level
 MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &menu_submenu_ec, &item_reset };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
@@ -1114,41 +940,11 @@ OMMenuMgr2 Menu(&menu_root, MENU_DIGITAL, &kpd);
 
 
 
-
-
-
-
 int saveMessage(char msg[], char status) {
 	if((gsmNumber[2] != '0') && status == MESSAGE_ALARM_ON) {
 		gsmMgr.call();
 	}
 
-    //DateTime now = rtc.now();
-    //sprintf(msg, " %d2/%d2 %d2:%d2 ", now.month(), now.day(), now.hour(), now.minute());
-    //Serial.println(msg);
-
-    //TODO change to sprintf?
-/*
-    String m("");
-    m.reserve(16);
-    //String m = String();//"0123456789ABCDEF");
-    if(now.day() < 10)
-      m += '0';
-    m += now.day();
-    m += '/';
-    if(now.month() < 10)
-      m += '0';
-    m += now.month();
-    m += ' ';
-    if(now.hour() < 10)
-      m += '0';
-    m += now.hour();
-    m += ':';
-    if(now.minute() < 10)
-      m += '0';
-    m += now.minute();
-    m.toCharArray(msg, 12);
-*/
 	char* p = msg;
 	if(now.day() < 10)
 	   itoa(0, p++, 10);
@@ -1170,25 +966,8 @@ int saveMessage(char msg[], char status) {
 	   itoa(0, p++, 10);
 	itoa(now.minute(), p, 10);
 
-//	msg[11]=' ';
-/*
-	    m += now.day();
-	    m += '/';
-	    if(now.month() < 10)
-	      m += '0';
-	    m += now.month();
-	    m += ' ';
-	    if(now.hour() < 10)
-	      m += '0';
-	    m += now.hour();
-	    m += ':';
-	    if(now.minute() < 10)
-	      m += '0';
-	    m += now.minute();
-	*/
     msg[11]= ' ';
     msg[15] = status;
-    //---------------
 
     int offset;
     OMEEPROM::read(MESSAGESOFFSET_ADDR, offset);
@@ -1294,7 +1073,6 @@ void saveDefaultEEPROM() {
     OMEEPROM::write(HEATERONTEMPNIGHT_ADDR, heaterOnTempNight);
     OMEEPROM::write(HEATEROFFTEMPNIGHT_ADDR, heaterOffTempNight);
 
-
     fanMode = 0;
     fanOnTemp=20.0;
     fanOffTemp=19.0;
@@ -1384,7 +1162,6 @@ void saveDefaultEEPROM() {
 
     externalModeAlarm = 0;
     OMEEPROM::write(EXTERNALMODEALARM_ADDR, externalModeAlarm);
-
 }
 
 //////////////////////////////////
@@ -1441,8 +1218,8 @@ void setup() {
 		// January 21, 2014 at 3am you would call:
 		// rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
 	}
+
 	now = rtc.now();
-	//secondstime = now.secondstime();
 	milliseconds = millis();
 
 	saveMessage(MESSAGE_ALARM_POWERON, MESSAGE_ALARM_ON);
@@ -1503,10 +1280,8 @@ double calcEC(long lowPulseTime, long highPulseTime) {
 
 
 bool parseCmd(String &text, const char* cmd, byte &mode, const int address=0) {
-	//int pos = text.indexOf("#L");
 	int pos = text.indexOf(cmd);
 	if(pos > -1) {
-		//Serial.println("LIGHT");
 		char ch = text.charAt(pos+2);
 		if(ch=='A') mode = 0;
 		else if(ch=='0') mode = 1;
@@ -1575,6 +1350,7 @@ void infoSerial(Stream* ser) {
   	}
  }
 */
+
 //////////////////////////////////
 // main loop
 //////////////////////////////////
@@ -2310,25 +2086,6 @@ void uiScreen() {
 			uiLcdPrintSpaces8();
 		}
 		//delay(200);
-		/*
-		if(abs(temperature) < 10)
-			lcd.print('0');
-		lcd.print(temperature);
-
-		lcd.setCursor(5, 0);
-		lcd.print(' ');
-		if(abs(temperature) < 10)
-			lcd.print('0');
-		lcd.print(humidity);
-
-		lcd.setCursor(7, 0);
-		lcd.print(' ');
-		if(abs(light) < 10)
-			lcd.print('0');
-		lcd.print(light);
-		lcd.print(' ');
-		 */
-
 	}
 
 	if(uiState == UISTATE_ALARMLIST) {
@@ -2487,8 +2244,6 @@ void uiLcdPrintSpaces8() {
 
 void uiMain() {
 
-//if(uiPage==0) {
-
 	if(tempHighAlarm2.unAck || tempLowAlarm2.unAck || lightHighAlarm2.unAck || lightLowAlarm2.unAck || externalAlarm2.unAck
 			|| phHighAlarm2.unAck || phLowAlarm2.unAck || ecHighAlarm2.unAck || ecLowAlarm2.unAck || humiHighAlarm2.unAck || humiLowAlarm2.unAck
 			|| powerAlarm2.unAck || levelHighAlarm2.unAck || levelLowAlarm2.unAck) {
@@ -2517,7 +2272,6 @@ void uiMain() {
 		lcd.print('0');
 	lcd.print(humidity);
 
-	//DateTime now = rtc.now();
 	lcd.setCursor(10, 0);
 	lcd.print(' ');
 	if (now.hour() < 10)
@@ -2532,7 +2286,6 @@ void uiMain() {
 		lcd.print('0');
 	lcd.print(now.minute(), DEC);
 
-
 	lcd.setCursor(0, 1);
 	if(lightHighAlarm2.active)
 		secToggle ? lcd.print('+') : lcd.print(' ');
@@ -2543,26 +2296,6 @@ void uiMain() {
 	else
 		lcd.print(' ');
 
-	/*
-	lcd.print(light2.getString());
-	lcd.print(" ");
-	lcd.print(heater2.getString());
-	lcd.print(" ");
-	lcd.print(fan2.getString());
-	lcd.print(" ");
-	lcd.print(cycler2.getString());
-	*/
-	/*
-	lcd.print("L");
-	lcd.print(getInstrumentString(lightControl, lightMode));
-	lcd.print(" H");
-	lcd.print(getInstrumentString(heaterControl, heaterMode));
-	lcd.print(" V");
-	lcd.print(getInstrumentString(lightControl, lightMode));
-	lcd.print(" C");
-	lcd.print(getInstrumentString(cyclerControl, cyclerMode));
-	*/
-
 	lcd.print("L");
 	uiInstrument(lightControl, lightMode);
 	lcd.print(" H");
@@ -2571,6 +2304,8 @@ void uiMain() {
 	uiInstrument(fanControl, fanMode);
 	lcd.print(" C");
 	uiInstrument(cyclerControl, cyclerMode);
+
+
 //}
 	/*
 	else if(uiPage == 1) {
@@ -2643,50 +2378,48 @@ void uiQwkScreen() {
 */
 
 float getTemp(OneWire ds){
- //returns the temperature from one DS18S20 in DEG Celsius
+	//returns the temperature from one DS18S20 in DEG Celsius
+	byte data[12];
+	byte addr[8];
 
- byte data[12];
- byte addr[8];
+	if ( !ds.search(addr)) {
+		//no more sensors on chain, reset search
+		ds.reset_search();
+		return -1000;
+	}
 
- if ( !ds.search(addr)) {
-   //no more sensors on chain, reset search
-   ds.reset_search();
-   return -1000;
- }
+	if ( OneWire::crc8( addr, 7) != addr[7]) {
+		Serial.println("CRC is not valid!");
+		return -1000;
+	}
 
- if ( OneWire::crc8( addr, 7) != addr[7]) {
-   Serial.println("CRC is not valid!");
-   return -1000;
- }
+	if ( addr[0] != 0x10 && addr[0] != 0x28) {
+		Serial.print("Device is not recognized");
+		return -1000;
+	}
 
- if ( addr[0] != 0x10 && addr[0] != 0x28) {
-   Serial.print("Device is not recognized");
-   return -1000;
- }
+	ds.reset();
+	ds.select(addr);
+	ds.write(0x44,1); // start conversion, with parasite power on at the end
 
- ds.reset();
- ds.select(addr);
- ds.write(0x44,1); // start conversion, with parasite power on at the end
+	delay(750); // Wait for temperature conversion to complete
 
- delay(750); // Wait for temperature conversion to complete
-
- byte present = ds.reset();
- ds.select(addr);
- ds.write(0xBE); // Read Scratchpad
+	byte present = ds.reset();
+	ds.select(addr);
+	ds.write(0xBE); // Read Scratchpad
 
 
- for (int i = 0; i < 9; i++) { // we need 9 bytes
-  data[i] = ds.read();
- }
+	for (int i = 0; i < 9; i++) { // we need 9 bytes
+		data[i] = ds.read();
+	}
 
- ds.reset_search();
+	ds.reset_search();
 
- byte MSB = data[1];
- byte LSB = data[0];
+	byte MSB = data[1];
+	byte LSB = data[0];
 
- float tempRead = ((MSB << 8) | LSB); //using two's compliment
- float TemperatureSum = tempRead / 16;
+	float tempRead = ((MSB << 8) | LSB); //using two's compliment
+	float TemperatureSum = tempRead / 16;
 
- return TemperatureSum;
-
+	return TemperatureSum;
 }
