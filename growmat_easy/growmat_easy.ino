@@ -50,8 +50,8 @@ const byte KPD_COLS = 4;
 //#define PHTAPPIN A4
 //#define PHTDPIN
 
-#define SR04TX_PIN 12
-#define SR04RX_PIN 13
+#define SR04TX_PIN 7
+#define SR04RX_PIN 12
 
 #define SAMPLES 10
 
@@ -116,6 +116,13 @@ const byte KPD_COLS = 4;
 #define MESSAGES_ADDR 228
 #define MESSAGESCOUNT 8
 #define MESSAGELENGTH 16
+
+// TODO: save memory!!!
+#define MESSAGE_LIGHT_CONTROL "L:"
+#define MESSAGE_HEATER_CONTROL "H:"
+#define MESSAGE_FAN_CONTROL "F:"
+#define MESSAGE_CYCLER_CONTROL "C:"
+
 //                              "0123456789ABCDEF"
 #define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON x"
 #define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T+ x"
@@ -135,6 +142,7 @@ const byte KPD_COLS = 4;
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
+//const char MESSAGE_TEMPHIGH[] PROGMEM  = {"T+!"};
 #define MESSAGE_TEMPHIGH "T+!"
 #define MESSAGE_TEMPLOW "T-!"
 #define MESSAGE_LIGHTHIGH "L+!"
@@ -142,10 +150,12 @@ const byte KPD_COLS = 4;
 #define MESSAGE_EXTERNAL "EX!"
 #define MESSAGE_HUMIHIGH "T+!"
 #define MESSAGE_HUMILOW "T-!"
+//const char MESSAGE_POWERLOW[] PROGMEM  = {"PW!"};
 #define MESSAGE_POWERLOW "PW!"
 #define MESSAGE_LEVELHIGH "D+!"
 #define MESSAGE_LEVELLOW "D-!"
 
+//const char MESSAGE_TEMP[] PROGMEM = {"TA="};
 #define MESSAGE_TEMP "TA="
 #define MESSAGE_HUMI "HA="
 #define MESSAGE_LIGHT "LA="
@@ -161,6 +171,19 @@ const byte KPD_COLS = 4;
 #define MESSAGE_CMD_HEATER  "#H"
 #define MESSAGE_CMD_FAN  "#F"
 #define MESSAGE_CMD_CYCLER  "#C"
+#define MESSAGE_CMD_CYCLER  "#C"
+//const char MESSAGE_CMD_REQUEST[] PROGMEM  = {"#?"};
+#define MESSAGE_CMD_REQUEST  "#?"
+#define MESSAGE_CMD_GSMMODE  "#M"
+
+#define MESSAGE_CMD_PARREADINT "#PRI"
+#define MESSAGE_CMD_PARREADFLOAT "#PRF"
+#define MESSAGE_CMD_PARWRITEINT "#PWI"
+#define MESSAGE_CMD_PARWRITEFLOAT "#PWF"
+#define MESSAGE_CMD_PARRELOAD "#PLD"
+
+//#define MESSAGE_CMD_SAVEFLOAT  "#SF"
+//#define MESSAGE_CMD_SAVEINT  "#SI"
 
 //#define GSMCHECKSMSINTERVAL  60000
 #define GSMCALLDURATION  30000
@@ -176,6 +199,7 @@ const byte KPD_COLS = 4;
 #define KPD_ENTER '*'
 #define KPD_ESC '0'
 
+#include <avr/wdt.h>
 
 //////////////////////////////////
 // variables
@@ -244,7 +268,19 @@ float ecLowY, ecHighY;
 byte externalModeAlarm;
 
 
-
+bool parseCmd(String &text, const char* cmd, byte &mode, const int address=0) {
+	int pos = text.indexOf(cmd);
+	if(pos > -1) {
+		char ch = text.charAt(pos + strlen(cmd));
+		if(ch=='A') mode = 0;
+		else if(ch=='0') mode = 1;
+		else if(ch=='1') mode = 2;
+		if(address)
+			OMEEPROM::write(address, mode);
+		return true;
+	}
+	return false;
+}
 /*
 class Instrument {
 	//not used yet !!!
@@ -487,6 +523,12 @@ public:
 						OMEEPROM::write(GSMMODE_ADDR, gsmMode);
 					}
 
+			  		parseCmd(text, MESSAGE_CMD_LIGHT, lightMode);
+			  		parseCmd(text, MESSAGE_CMD_HEATER, heaterMode);
+			  		parseCmd(text, MESSAGE_CMD_FAN, fanMode);
+			  		parseCmd(text, MESSAGE_CMD_CYCLER, cyclerMode);
+
+			  		/*
 					pos = text.indexOf("#L");
 					if(pos > -1) {
 						//Serial.println("LIGHT");
@@ -520,8 +562,10 @@ public:
 						else if(ch=='1') cyclerMode = 2;
 						//OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
 					}
+					*/
 
-					pos = text.indexOf("#?");
+					pos = text.indexOf(MESSAGE_CMD_REQUEST);
+					//pos = text.indexOf("#?");
 					if(pos > -1) {// && gsmMode > 1) {
 
 						// TODO:
@@ -532,7 +576,7 @@ public:
 						//Serial.print(sim->sendSms(gsmNumber, "TEST"));
 
 						sim->sendSmsBegin(gsmNumber);
-						sim->sendSmsText("\n");
+						sim->sendSmsText('\n');
 						//sim->sendSmsText("TEST");
 						//sim->sendSmsEnd();
 
@@ -597,8 +641,6 @@ public:
 						sim->sendSmsText(MESSAGE_GSM);
 						sim->sendSmsText(gsmMode);
 						sim->sendSmsText("\n");
-						//sim->sendSmsText("\nGSM MODE=");
-						//sim->sendSmsText(gsmMode);
 						//sim->sendSmsText("\nGSM NUMBER=");
 						//sim->sendSmsText(gsmNumber);
 
@@ -994,6 +1036,24 @@ void readMessage(int index, byte* msg) {
     *(msg+MESSAGELENGTH) = 0;
 }
 
+void serialPrintParInt(int address)
+{
+	int val;
+	OMEEPROM::read(address, val);
+	Serial.print(val);
+	Serial.println();
+	Serial.println();
+}
+void serialPrintParFloat(int address)
+{
+	float val;
+	OMEEPROM::read(address, val);
+	Serial.println(val);
+	Serial.println();
+	Serial.println();
+}
+
+
 void loadEEPROM() {
     using namespace OMEEPROM;
 
@@ -1237,8 +1297,77 @@ void setup() {
 	Menu.setDrawHandler(uiDraw);
 	Menu.setExitHandler(uiMain);
 	Menu.enable(true);
+
+	wdt_enable(WDTO_8S);
 }
 
+/*
+void proccedCmd(String text, bool checkPassword) {
+	int pos;
+	char ch;
+
+	if(checkPassword) {
+		pos = text.indexOf("#P");
+		if(text.substring(pos+2, pos+6) != String(*gsmCode, DEC)) {
+		//Serial.println("CODE NOK");
+			return;
+		}
+	}
+
+	pos = text.indexOf("#00");
+	if(pos > -1) {
+		// save new gsm number
+		text.substring(pos+1).toCharArray(gsmNumber, 16, 0);
+		gsmNumber[14] = 0;
+		for(int i=0; i < 16; i++) {
+			OMEEPROM::write(GSMNUMBER_ADDR + i, gsmNumber[i]);
+		}
+	}
+	pos = text.indexOf(MESSAGE_CMD_GSMMODE);
+	if(pos > -1) {
+		gsmMode = text.charAt(pos + strlen(MESSAGE_CMD_GSMMODE)) - 48;
+		OMEEPROM::write(GSMMODE_ADDR, gsmMode);
+	}
+
+	pos = text.indexOf(MESSAGE_CMD_LIGHT);
+	if(pos > -1) {
+		//Serial.println("LIGHT");
+		ch = text.charAt(pos + strlen(MESSAGE_CMD_HEATER));
+		if(ch=='A') lightMode = 0;
+		else if(ch=='0') lightMode = 1;
+		else if(ch=='1') lightMode = 2;
+		//OMEEPROM::write(LIGHTMODE_ADDR, lightMode);
+	}
+	pos = text.indexOf(MESSAGE_CMD_HEATER);
+	if(pos > -1) {
+		ch = text.charAt(pos + strlen(MESSAGE_CMD_HEATER));
+		if(ch=='A') heaterMode = 0;
+		else if(ch=='0') heaterMode = 1;
+		else if(ch=='1') heaterMode = 2;
+		//OMEEPROM::write(HEATERMODE_ADDR, heaterMode);
+	}
+	pos = text.indexOf(MESSAGE_CMD_FAN);
+	if(pos > -1) {
+		ch = text.charAt(pos + strlen(MESSAGE_CMD_FAN));
+		if(ch=='A') fanMode = 0;
+		else if(ch=='0') fanMode = 1;
+		else if(ch=='1') fanMode = 2;
+		//OMEEPROM::write(FANMODE_ADDR, fanMode);
+	}
+	pos = text.indexOf(MESSAGE_CMD_CYCLER);
+	if(pos > -1) {
+		ch = text.charAt(pos + strlen(MESSAGE_CMD_CYCLER));
+		if(ch=='A') cyclerMode = 0;
+		else if(ch=='0') cyclerMode = 1;
+		else if(ch=='1') cyclerMode = 2;
+		//OMEEPROM::write(CYCLERMODE_ADDR, cyclerMode);
+	}
+	pos = text.indexOf(MESSAGE_CMD_REQUEST);
+	if(pos > -1) {
+
+	}
+}
+*/
 
 bool getInstrumentControl(bool a, byte mode) {
 	if(mode == 0) return a;
@@ -1279,19 +1408,7 @@ double calcEC(long lowPulseTime, long highPulseTime) {
 }
 
 
-bool parseCmd(String &text, const char* cmd, byte &mode, const int address=0) {
-	int pos = text.indexOf(cmd);
-	if(pos > -1) {
-		char ch = text.charAt(pos+2);
-		if(ch=='A') mode = 0;
-		else if(ch=='0') mode = 1;
-		else if(ch=='1') mode = 2;
-		if(address)
-			OMEEPROM::write(address, mode);
-		return true;
-	}
-	return false;
-}
+
 
 /*
 void getInstrumentString(bool a, byte mode, char* b) {
@@ -1361,6 +1478,9 @@ byte secondsCounter;
 //bool newSecond;
 
 void loop() {
+
+	wdt_reset();
+
 	//gsmMode = 0;
 
 	now = rtc.now();
@@ -1372,6 +1492,8 @@ void loop() {
 		//newSecond = true;
 		secondsCounter++;
 
+
+
 		//TODO:
 		//once per 10 seconds, offset 0
 		if (secondsCounter % 10 == 0) {
@@ -1380,7 +1502,8 @@ void loop() {
 			//temperature2 = getTemp(oneWire);
 			//temperature2 = getTemp();
 		}
-		//once per 5 seconds, offset 1
+		/*
+		//once per 10 seconds, offset 1
 		else if(secondsCounter % 10 == 1) {
 			//level =
 			digitalWrite(SR04TX_PIN, LOW);
@@ -1396,7 +1519,7 @@ void loop() {
 				distance = NAN;
 			}
 			level = -distance;
-		}
+		}*/
 		else {
 			float t0, h0;
 			t0 = dht.readTemperature();
@@ -1408,6 +1531,21 @@ void loop() {
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
 			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
+
+			//level =
+			digitalWrite(SR04TX_PIN, LOW);
+			delayMicroseconds(2);
+			digitalWrite(SR04TX_PIN, HIGH);
+			delayMicroseconds(10);
+			digitalWrite(SR04TX_PIN, LOW);
+			long duration = pulseIn(SR04RX_PIN, HIGH);
+			//Calculate the distance (in cm) based on the speed of sound.
+			float distance = duration / 58.2;
+			if (distance >= 200 || distance <= 0){
+				//out of range
+				distance = NAN;
+			}
+			level = -distance;
 		}
 
 		if(lightAuto) {
@@ -1466,7 +1604,7 @@ void loop() {
 		millisecondsPrev = millis();
 		//Serial.println(secondstime);
 		//Serial.println(milliseconds);
-		Serial.print('.');
+		//Serial.print('.');
 
 		// how often check sms, time expensive
 		//if(!(secondstime % 60) && gsmMode > 0) {
@@ -1794,11 +1932,58 @@ void loop() {
   		parseCmd(text, MESSAGE_CMD_FAN, fanMode);
   		parseCmd(text, MESSAGE_CMD_CYCLER, cyclerMode);
 
+  		int pos = text.indexOf(MESSAGE_CMD_PARREADINT);
+  		if (pos >= 0) {
+  			serialPrintParInt(text.substring(pos + strlen(MESSAGE_CMD_PARREADINT)).toInt());
+  		}
+  		pos = text.indexOf(MESSAGE_CMD_PARREADFLOAT);
+  		if (pos >= 0) {
+  			serialPrintParFloat(text.substring(pos + strlen(MESSAGE_CMD_PARREADFLOAT)).toFloat());
+  		}
+  		pos = text.indexOf(MESSAGE_CMD_PARWRITEINT);
+  		if (pos >= 0) {
+  			int address = text.substring(pos + strlen(MESSAGE_CMD_PARWRITEINT)).toInt();
+  			//#PWI0125:25
+  			int value = text.substring(pos + strlen(MESSAGE_CMD_PARWRITEINT) + 5).toInt();
+  			OMEEPROM::write(address, value);
+  		}
+  		pos = text.indexOf(MESSAGE_CMD_PARWRITEFLOAT);
+  		if (pos >= 0) {
+  			int address = text.substring(pos + strlen(MESSAGE_CMD_PARWRITEINT)).toInt();
+  			//#PWI0125:25
+  			float value = text.substring(pos + strlen(MESSAGE_CMD_PARWRITEINT) + 5).toFloat();
+  			OMEEPROM::write(address, value);
+  		}
+  		pos = text.indexOf(MESSAGE_CMD_PARRELOAD);
+  		if (pos >= 0) {
+  			loadEEPROM();
+  		}
 
-  		if (text.indexOf("?")!=-1 ) {
+		if (text.indexOf(MESSAGE_CMD_REQUEST)!=-1 ) {
+  		//if (text.indexOf("?")!=-1 ) {
   		//if (Serial.readString().indexOf("?")!=-1 ) {
+			Serial.println();
 
-  			Serial.println(F("OK"));
+
+			lightControl = getInstrumentControl(lightAuto, lightMode);
+			heaterControl = getInstrumentControl(heaterAuto, heaterMode);
+			fanControl = getInstrumentControl(fanAuto, fanMode);
+			cyclerControl = getInstrumentControl(cyclerAuto, cyclerMode);
+
+			Serial.print(MESSAGE_LIGHT_CONTROL);
+			lightControl ? Serial.print('1') : Serial.print('0');
+			lightMode ? Serial.println('M') : Serial.println('A');
+			Serial.print(MESSAGE_HEATER_CONTROL);
+			heaterControl ? Serial.print('1') : Serial.print('0');
+			heaterMode ? Serial.println('M') : Serial.println('A');
+			Serial.print(MESSAGE_FAN_CONTROL);
+			fanControl ? Serial.print('1') : Serial.print('0');
+			fanMode ? Serial.println('M') : Serial.println('A');
+			Serial.print(MESSAGE_CYCLER_CONTROL);
+			cyclerControl ? Serial.print('1') : Serial.print('0');
+			cyclerMode ? Serial.println('M') : Serial.println('A');
+			//Serial.println();
+			Serial.println();
 
   			Serial.print(MESSAGE_TEMP);
   			Serial.println(temperature);
