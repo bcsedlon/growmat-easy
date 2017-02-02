@@ -39,8 +39,8 @@ const byte KPD_COLS = 4;
 
 #define LIGHT_PIN A0
 #define DHT_PIN 6
-#define DHTTYPE DHT11   // DHT 11
-//#define DHTTYPE DHT22   // DHT 22  (AM2302)
+//#define DHTTYPE DHT11   // DHT 11
+#define DHTTYPE DHT22   // DHT 22  (AM2302)
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
 #define ECINPUT_PIN 2
@@ -114,7 +114,7 @@ const byte KPD_COLS = 4;
 
 #define MESSAGESOFFSET_ADDR 224
 #define MESSAGES_ADDR 228
-#define MESSAGESCOUNT 8
+#define MESSAGESCOUNT 32
 #define MESSAGELENGTH 16
 
 // TODO: save memory!!!
@@ -1538,10 +1538,12 @@ void loop() {
 			digitalWrite(SR04TX_PIN, HIGH);
 			delayMicroseconds(10);
 			digitalWrite(SR04TX_PIN, LOW);
-			long duration = pulseIn(SR04RX_PIN, HIGH);
+			long duration;
+			duration = pulseIn(SR04RX_PIN, HIGH);
 			//Calculate the distance (in cm) based on the speed of sound.
 			float distance = duration / 58.2;
-			if (distance >= 200 || distance <= 0){
+
+			if (distance >= 200 || distance <= 20){
 				//out of range
 				distance = NAN;
 			}
@@ -1559,7 +1561,7 @@ void loop() {
 
 		//TODO:
 		//once per 5 seconds, offset 8
-		bool rcUpdate = (secondsCounter % 5 == 8);
+		bool rcUpdate = (secondsCounter % 10 == 0);
 
 		if(lightMode != 3 ) {
 			if(rcUpdate || lightControlLast != lightControl) {

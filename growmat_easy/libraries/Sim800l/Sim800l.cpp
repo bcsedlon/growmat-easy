@@ -97,13 +97,15 @@ String Sim800l::_readSerial(){
 		return "";
 
 	_timeout=0;
-  while  (!SIM.available() && _timeout < 12000  ) 
+  //while  (!SIM.available() && _timeout < 12000  )
+  while  (!SIM.available() && _timeout < 4000  )
   {
     delay(13);
     _timeout++;
   }
 
-  if(_timeout > 10000)
+  //if(_timeout > 10000)
+  if(_timeout > 3800)
 	na = true;
 
   if (SIM.available()) {
