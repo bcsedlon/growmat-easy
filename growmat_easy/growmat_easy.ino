@@ -1298,6 +1298,13 @@ void setup() {
 	Menu.setExitHandler(uiMain);
 	Menu.enable(true);
 
+	Serial2.begin(115200);
+		while(!Serial);
+
+
+	connectWiFi();
+
+
 	wdt_enable(WDTO_8S);
 }
 
@@ -1477,6 +1484,120 @@ bool lightControlLast, heaterControlLast, fanControlLast, cyclerControlLast;
 byte secondsCounter;
 //bool newSecond;
 
+
+
+
+
+#define SSID "UPC1889041"//"auser"
+#define PASS "CFHXAJYD" //"61catPM253"
+String GET = "GET /update?key=TEERFD89BN6SDE19";//8OC2G029OG74M1V9"; //TODO: 8OC2G029OG74M1V9 change to https://thingspeak.com api write key
+#define IP "184.106.153.149" // ThingSpeak IP Address: 184.106.153.149
+// https://thingspeak.com/channels/189974
+// GET /update?key=[THINGSPEAK_KEY]&field1=[data 1]&field2=[data 2]...;
+// String GET = "GET /update?key=THINGSPEAK_KEY";
+
+boolean isConnectedWiFi() {
+	wdt_reset();
+	String text = "AT+CIFSR";
+	Serial2.println(text);
+	Serial.println(text);
+	wdt_reset();
+	delay(5000);
+	wdt_reset();
+	//text = Serial2.readString();
+	//int pos = text.indexOf("OK");
+	if(Serial2.find("OK"))
+		return true;
+	else
+		return false;
+
+	/*
+	if(pos > 0)
+		return true;
+	else
+		return false;
+	*/
+}
+
+boolean connectWiFi()
+{
+	wdt_reset();
+	Serial2.println("AT+CWMODE=1");//WiFi STA mode - if '3' it is both client and AP
+	delay(2000);
+	wdt_reset();
+	//Connect to Router with AT+CWJAP="SSID","Password";
+	// Check if connected with AT+CWJAP?
+	String cmd="AT+CWJAP=\""; // Join accespoint
+	cmd+=SSID;
+	cmd+="\",\"";
+	cmd+=PASS;
+	cmd+="\"";
+	Serial2.println(cmd);
+	Serial.println(cmd);
+	wdt_reset();
+	delay(5000);
+	wdt_reset();
+	if(Serial2.find("OK"))  {
+		Serial.println("RECEIVED: OK");
+		return true;
+	}
+	else
+	{
+		Serial.println("RECEIVED: Error");
+		return false;
+	}
+
+	cmd = "AT+CIPMUX=0";// Set Single connection
+	Serial2.println( cmd );
+	Serial.println(cmd);
+	if( Serial2.find( "Error") )  {
+		Serial.print( "RECEIVED: Error" );
+		return false;
+	}
+}
+
+//----- update the  Thingspeak string with 3 values
+void updateTS() // String s0, String s1 , String s2)
+{
+	// ESP8266 Client
+	String cmd = "AT+CIPSTART=\"TCP\",\"";// Setup TCP connection
+	cmd += IP;
+	cmd += "\",80";
+	Serial2.println(cmd);
+	Serial.println(cmd);
+	wdt_reset();
+	delay(2000);
+	wdt_reset();
+	if( Serial2.find( "Error" ) )	{
+		Serial.print( "RECEIVED: Error\nExit1" );
+		return;
+	}
+
+	//cmd = GET + "&field1=" + s0 +"&field2="+ s1 + "&field3=" + s2 +"\r\n";
+	cmd = GET + "&field1=" + String(temperature) +"&field2="+ String(humidity) + "&field3=" + String(light) + "&field4=" + String(ph) + "&field5=" + String(ec) + "&field6=" + String(temperature2) + "&field7=" + String(level) + "&field8=" + String(powerana) +"\r\n";
+	Serial2.print( "AT+CIPSEND=" );
+	Serial.print( "AT+CIPSEND=" );
+	Serial2.println( cmd.length() );
+	Serial.println(cmd.length());
+	if(Serial2.find( ">" ) )
+	{
+		Serial.print(">");
+		Serial.print(cmd);
+		Serial2.print(cmd);
+	}
+	else {
+		Serial2.println( "AT+CIPCLOSE" );//close TCP connection
+		Serial.println("AT+CIPCLOSE");
+	}
+	if( Serial2.find("OK") )  {
+		Serial.println( "RECEIVED: OK" );
+	}
+	else  {
+		Serial.println( "RECEIVED: Error\nExit2" );
+	}
+	wdt_reset();
+}
+
 void loop() {
 
 	wdt_reset();
@@ -1492,13 +1613,22 @@ void loop() {
 		//newSecond = true;
 		secondsCounter++;
 
-
-
+		if (secondsCounter % 60 == 0) {
+			//if(!isConnectedWiFi())
+			//	connectWiFi();
+			//if(isConnectedWiFi()) {
+				//String s_value_0 =String(ph);
+				//String s_value_1 =String(ec);
+				//String s_value_2 =String(level);
+				updateTS();//s_value_0,s_value_1, s_value_2);
+			//}
+		}
 		//TODO:
 		//once per 10 seconds, offset 0
 		if (secondsCounter % 10 == 0) {
 			oneWireSensors.requestTemperatures(); // Send the command to get temperatures
 			temperature2 = oneWireSensors.getTempCByIndex(0);
+			//Serial.println(temperature2);
 			//temperature2 = getTemp(oneWire);
 			//temperature2 = getTemp();
 		}
@@ -1531,7 +1661,7 @@ void loop() {
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
 			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
-
+/*
 			//level =
 			digitalWrite(SR04TX_PIN, LOW);
 			delayMicroseconds(2);
@@ -1548,6 +1678,8 @@ void loop() {
 				distance = NAN;
 			}
 			level = -distance;
+	*/
+			level = analogRead(A10, SAMPLES)/10.23;
 		}
 
 		if(lightAuto) {
@@ -1928,13 +2060,42 @@ void loop() {
   		//incomingByte = Serial.read();
 
   		String text = Serial.readString();
+
+#define MESSAGE_CMD_SERIAL1 "#S2"
+  		int pos = text.indexOf(MESSAGE_CMD_SERIAL1);
+  		if (pos >= 0) {
+  			wdt_disable();
+  			Serial.println("SERIAL2 DEBUG MODE");
+  			//Serial2.begin(115200);
+
+  			isConnectedWiFi();
+  			connectWiFi();
+  			updateTS();//"10", "20", "30");
+
+
+  			while(true) {
+  				if (Serial2.available()) {
+  					int inByte = Serial2.read();
+  					Serial.write(inByte);
+  				}
+
+  				// read from port 0, send to port 1:
+  				if (Serial.available()) {
+  					int inByte = Serial.read();
+  					Serial2.write(inByte);
+  				}
+  			}
+  			wdt_enable(WDTO_8S);
+  		}
+
+
   		//parseCmd(text, "#L", lightMode);
   		parseCmd(text, MESSAGE_CMD_LIGHT, lightMode);
   		parseCmd(text, MESSAGE_CMD_HEATER, heaterMode);
   		parseCmd(text, MESSAGE_CMD_FAN, fanMode);
   		parseCmd(text, MESSAGE_CMD_CYCLER, cyclerMode);
 
-  		int pos = text.indexOf(MESSAGE_CMD_PARREADINT);
+  		pos = text.indexOf(MESSAGE_CMD_PARREADINT);
   		if (pos >= 0) {
   			serialPrintParInt(text.substring(pos + strlen(MESSAGE_CMD_PARREADINT)).toInt());
   		}

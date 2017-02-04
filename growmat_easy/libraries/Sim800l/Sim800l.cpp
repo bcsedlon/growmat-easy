@@ -94,7 +94,7 @@ void Sim800l::writeSerial(String s){
 String Sim800l::_readSerial(){
 
 	if(na)
-		return "";
+		return "ER";
 
 	_timeout=0;
   //while  (!SIM.available() && _timeout < 12000  )
