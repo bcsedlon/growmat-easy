@@ -31,9 +31,12 @@ const byte KPD_COLS = 4;
 //#define CYCLERCONTROL_PIN 12
 
 #define EXT_PIN 8
-#define EXTANA_PIN A2
+#define EXTANA_PIN A4
 
-#define POWERANA_PIN A3
+
+#define POWERANA_PIN A2
+#define LEVELANA_PIN A3
+
 
 #define ONEWIREBUS_PIN 5
 
@@ -66,7 +69,6 @@ const byte KPD_COLS = 4;
 #define LIGHTOFFMIN_ADDR 20
 
 #define HEATERMODE_ADDR 24
-#define HEATERONTEMP_ADDR 28
 #define HEATEROFFTEMP_ADDR 32
 
 #define FANMODE_ADDR 36
@@ -96,6 +98,7 @@ const byte KPD_COLS = 4;
 #define ECLOWY_ADDR 124
 #define ECHIGHY_ADDR 128
 #define HEATERONTEMPNIGHT_ADDR 132
+#define HEATERONTEMP_ADDR 28
 #define HEATEROFFTEMPNIGHT_ADDR 136
 #define FANONTEMPNIGHT_ADDR 140
 #define FANOFFTEMPNIGHT_ADDR 144
@@ -117,6 +120,10 @@ const byte KPD_COLS = 4;
 #define MESSAGESCOUNT 32
 #define MESSAGELENGTH 16
 
+#define WIFISSID_ADDR 800 //16 bytes + 0
+#define WIFIPASS_ADDR 820 //16 bytes + 0
+#define WIFIAPIKEY_ADDR 840 //16 bytes + 0
+
 // TODO: save memory!!!
 #define MESSAGE_LIGHT_CONTROL "L:"
 #define MESSAGE_HEATER_CONTROL "H:"
@@ -125,10 +132,10 @@ const byte KPD_COLS = 4;
 
 //                              "0123456789ABCDEF"
 #define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON x"
-#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T+ x"
-#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T- x"
-#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L+ x"
-#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L- x"
+#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T +x"
+#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T -x"
+#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L +x"
+#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L -x"
 #define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX x"
 #define MESSAGE_ALARM_PHHIGH	"dd/mm hh:mm PH+x"
 #define MESSAGE_ALARM_PHLOW     "dd/mm hh:mm PH-x"
@@ -148,8 +155,8 @@ const byte KPD_COLS = 4;
 #define MESSAGE_LIGHTHIGH "L+!"
 #define MESSAGE_LIGHTLOW "L-!"
 #define MESSAGE_EXTERNAL "EX!"
-#define MESSAGE_HUMIHIGH "T+!"
-#define MESSAGE_HUMILOW "T-!"
+#define MESSAGE_HUMIHIGH "H+!"
+#define MESSAGE_HUMILOW "H-!"
 //const char MESSAGE_POWERLOW[] PROGMEM  = {"PW!"};
 #define MESSAGE_POWERLOW "PW!"
 #define MESSAGE_LEVELHIGH "D+!"
@@ -191,6 +198,7 @@ const byte KPD_COLS = 4;
 #define UISTATE_ALARMLIST 1
 #define UISTATE_SETCLOCK 2
 #define UISTATE_MEAS 3
+#define UISTATE_EDITTEXT 4
 
 #define KPD_UP 'A'
 #define KPD_DOWN 'B'
@@ -200,6 +208,13 @@ const byte KPD_COLS = 4;
 #define KPD_ESC '0'
 
 #include <avr/wdt.h>
+
+char wifiSSID[20];
+char wifiPass[20];
+char wifiApiKey[20];
+char* text;
+char* tmp_text = "0123456789ABCDEF";
+
 
 //////////////////////////////////
 // variables
@@ -954,9 +969,14 @@ MENU_ITEM lightLowAlarm_item   ={ {"LIGH LOW"},    ITEM_VALUE,  0,        MENU_T
 
 MENU_VALUE externalModeAlarm_value={ TYPE_BYTE, 2,    0,    MENU_TARGET(&externalModeAlarm), EXTERNALMODEALARM_ADDR };
 MENU_ITEM externalModeAlarm_item   ={ {"EXTERNAL"},    ITEM_VALUE,  0,        MENU_TARGET(&externalModeAlarm_value) };
-
+/*
 MENU_LIST const submenu_list5[] = { &tempHighAlarm_item, &tempLowAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighNightAlarm_item, &tempLowNightAlarm_item, &lightHighAlarm_item, &lightLowAlarm_item,
 			&phLowAlarm_item, &phHighPhAlarm_item, &ecLowAlarm_item, &ecHighAlarm_item,  &levelLowAlarm_item, &levelHighAlarm_item, &externalModeAlarm_item};
+*/
+MENU_LIST const submenu_list5[] = { &tempHighAlarm_item, &tempLowAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighNightAlarm_item, &tempLowNightAlarm_item, &lightHighAlarm_item, &lightLowAlarm_item,
+			&phLowAlarm_item, &phHighPhAlarm_item, &ecLowAlarm_item, &ecHighAlarm_item,  &externalModeAlarm_item};
+
+
 MENU_ITEM menu_submenu5 = { {"ALARM SET->"},  ITEM_MENU,  MENU_SIZE(submenu_list5),  MENU_TARGET(&submenu_list5) };
 
 MENU_VALUE gsmMode_value= { TYPE_BYTE, 3, 0,    MENU_TARGET(&gsmMode), GSMMODE_ADDR };
@@ -972,8 +992,16 @@ MENU_ITEM item_setClock   = { {"SET CLOCK->"},  ITEM_ACTION, 0,        MENU_TARG
 MENU_ITEM item_reset   = { {"RESET!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiResetAction) };
 //MENU_ITEM item_info   = { {"INFO->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiInfo) };
 
+
+MENU_ITEM item_setWiFiSSID   = { {"SSID->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetWiFiSSID) };
+MENU_ITEM item_setWiFiPass   = { {"PASSWORD->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetWiFiPass) };
+MENU_ITEM item_WiFiReconnect   = { {"SAVE & CONNECT!"},  ITEM_ACTION, 0,        MENU_TARGET(&uiWiFiReconnect) };
+MENU_ITEM item_setWiFiApiKey   = { {"KEY->"},  ITEM_ACTION, 0,        MENU_TARGET(&uiSetWiFiApiKey) };
+MENU_LIST const submenu_list7[] = { &item_setWiFiSSID, &item_setWiFiPass, &item_setWiFiApiKey, &item_WiFiReconnect};
+MENU_ITEM menu_submenu7 = { {"WIFI->"},  ITEM_MENU,  MENU_SIZE(submenu_list7),  MENU_TARGET(&submenu_list7) };
+
 //        List of items in menu level
-MENU_LIST const root_list[]   = { &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &menu_submenu_ec, &item_reset };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
+MENU_LIST const root_list[]   = {  &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &menu_submenu_ec, &item_reset, &menu_submenu7 };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
 
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
@@ -1106,6 +1134,20 @@ void loadEEPROM() {
     for(int i=0; i < 16; i++) {
          OMEEPROM::read(GSMNUMBER_ADDR + i, *(gsmNumber+i));
     }
+
+    for(int i=0; i < 16; i++) {
+         OMEEPROM::read(WIFISSID_ADDR + i, *(wifiSSID+i));
+    }
+
+    for(int i=0; i < 16; i++) {
+         OMEEPROM::read(WIFIPASS_ADDR + i, *(wifiPass+i));
+    }
+
+    for(int i=0; i < 16; i++) {
+         OMEEPROM::read(WIFIAPIKEY_ADDR + i, *(wifiApiKey+i));
+    }
+
+   //TODO: wifi pass, ssid, api key
 }
 
 void saveDefaultEEPROM() {
@@ -1490,7 +1532,8 @@ byte secondsCounter;
 
 #define SSID "UPC1889041"//"auser"
 #define PASS "CFHXAJYD" //"61catPM253"
-String GET = "GET /update?key=TEERFD89BN6SDE19";//8OC2G029OG74M1V9"; //TODO: 8OC2G029OG74M1V9 change to https://thingspeak.com api write key
+String GET = "GET /update?key=";//TEERFD89BN6SDE19";//8OC2G029OG74M1V9"; //TODO: 8OC2G029OG74M1V9 change to https://thingspeak.com api write key
+
 #define IP "184.106.153.149" // ThingSpeak IP Address: 184.106.153.149
 // https://thingspeak.com/channels/189974
 // GET /update?key=[THINGSPEAK_KEY]&field1=[data 1]&field2=[data 2]...;
@@ -1528,30 +1571,32 @@ boolean connectWiFi()
 	//Connect to Router with AT+CWJAP="SSID","Password";
 	// Check if connected with AT+CWJAP?
 	String cmd="AT+CWJAP=\""; // Join accespoint
-	cmd+=SSID;
+	//cmd+=SSID;
+	cmd+=wifiSSID;
 	cmd+="\",\"";
-	cmd+=PASS;
+	//cmd+=PASS;
+	cmd+=wifiPass;
 	cmd+="\"";
 	Serial2.println(cmd);
-	Serial.println(cmd);
+	//Serial.println(cmd);
 	wdt_reset();
 	delay(5000);
 	wdt_reset();
 	if(Serial2.find("OK"))  {
-		Serial.println("RECEIVED: OK");
+		//Serial.println("RECEIVED: OK");
 		return true;
 	}
 	else
 	{
-		Serial.println("RECEIVED: Error");
+		//Serial.println("RECEIVED: Error");
 		return false;
 	}
 
 	cmd = "AT+CIPMUX=0";// Set Single connection
 	Serial2.println( cmd );
-	Serial.println(cmd);
+	//Serial.println(cmd);
 	if( Serial2.find( "Error") )  {
-		Serial.print( "RECEIVED: Error" );
+		//Serial.print( "RECEIVED: Error" );
 		return false;
 	}
 }
@@ -1564,36 +1609,37 @@ void updateTS() // String s0, String s1 , String s2)
 	cmd += IP;
 	cmd += "\",80";
 	Serial2.println(cmd);
-	Serial.println(cmd);
+	//Serial.println(cmd);
 	wdt_reset();
 	delay(2000);
 	wdt_reset();
 	if( Serial2.find( "Error" ) )	{
-		Serial.print( "RECEIVED: Error\nExit1" );
+		//Serial.print( "RECEIVED: Error\nExit1" );
 		return;
 	}
 
 	//cmd = GET + "&field1=" + s0 +"&field2="+ s1 + "&field3=" + s2 +"\r\n";
-	cmd = GET + "&field1=" + String(temperature) +"&field2="+ String(humidity) + "&field3=" + String(light) + "&field4=" + String(ph) + "&field5=" + String(ec) + "&field6=" + String(temperature2) + "&field7=" + String(level) + "&field8=" + String(powerana) +"\r\n";
+	//cmd = GET + "&field1=" + String(temperature) +"&field2="+ String(humidity) + "&field3=" + String(light) + "&field4=" + String(ph) + "&field5=" + String(ec) + "&field6=" + String(temperature2) + "&field7=" + String(level) + "&field8=" + String(powerana) +"\r\n";
+	cmd = GET + wifiApiKey + "&field1=" + String(temperature) +"&field2="+ String(humidity) + "&field3=" + String(light) + "&field4=" + String(ph) + "&field5=" + String(ec) + "&field6=" + String(temperature2) + "&field7=" + String(level) + "&field8=" + String(powerana) +"\r\n";
 	Serial2.print( "AT+CIPSEND=" );
-	Serial.print( "AT+CIPSEND=" );
+	//Serial.print( "AT+CIPSEND=" );
 	Serial2.println( cmd.length() );
-	Serial.println(cmd.length());
+	//Serial.println(cmd.length());
 	if(Serial2.find( ">" ) )
 	{
-		Serial.print(">");
-		Serial.print(cmd);
+		//Serial.print(">");
+		//Serial.print(cmd);
 		Serial2.print(cmd);
 	}
 	else {
 		Serial2.println( "AT+CIPCLOSE" );//close TCP connection
-		Serial.println("AT+CIPCLOSE");
+		//Serial.println("AT+CIPCLOSE");
 	}
 	if( Serial2.find("OK") )  {
-		Serial.println( "RECEIVED: OK" );
+		//Serial.println( "RECEIVED: OK" );
 	}
 	else  {
-		Serial.println( "RECEIVED: Error\nExit2" );
+		//Serial.println( "RECEIVED: Error\nExit2" );
 	}
 	wdt_reset();
 }
@@ -1613,7 +1659,7 @@ void loop() {
 		//newSecond = true;
 		secondsCounter++;
 
-		if (secondsCounter % 60 == 0) {
+		if (secondsCounter % 120 == 0) {
 			//if(!isConnectedWiFi())
 			//	connectWiFi();
 			//if(isConnectedWiFi()) {
@@ -1656,7 +1702,7 @@ void loop() {
 			h0 = dht.readHumidity();
 			if(!isnan(t0)) temperature = t0;
 			if(!isnan(h0)) humidity = h0;
-			light = analogRead(LIGHT_PIN, SAMPLES) / 10.23;
+			light = 100-(analogRead(LIGHT_PIN, SAMPLES) / 10.23);
 			extana = analogRead(EXTANA_PIN, SAMPLES) / 10.23;
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
@@ -1679,7 +1725,12 @@ void loop() {
 			}
 			level = -distance;
 	*/
-			level = analogRead(A10, SAMPLES)/10.23;
+			level = analogRead(LEVELANA_PIN, SAMPLES)/10.23;
+			if(level > 50 )
+				level = 1.0;
+			else
+				level = 0.0;
+			//level = ~digitalRead();
 		}
 
 		if(lightAuto) {
@@ -2015,15 +2066,23 @@ void loop() {
 	if(humiLowAlarm2.deactivate(humidity > (humiLowAlarm + humiHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 
+	/*
 	if(levelHighAlarm2.activate(level > levelHighAlarm))
 		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_ON);
 	if(levelHighAlarm2.deactivate(level < (levelHighAlarm - levelHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_OFF);
 
+
 	if(levelLowAlarm2.activate(level < levelLowAlarm))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
 	if(levelLowAlarm2.deactivate(level > (levelLowAlarm + levelHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
+	*/
+	if(levelLowAlarm2.activate(level < 1.0 ))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
+	if(levelLowAlarm2.deactivate(level > 0.0))
+		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
+
 
 	if(kpd.getRawKey()) {
 		tempHighAlarm2.ack();
@@ -2170,6 +2229,8 @@ void loop() {
   			Serial.println(level);
   			Serial.println();
 
+
+
   			//infoSerial((Stream*)&Serial);
 
   			/*
@@ -2206,18 +2267,31 @@ void loop() {
 
   			Serial.println();
   			Serial.println();
+
+  			Serial.print(F("WIFI_SSID:"));
+  			Serial.println(wifiSSID);
+  			Serial.print(F("WIFI_PASS:"));
+  			Serial.println(wifiPass);
+  			Serial.print(F("WIFI_API:"));
+  			Serial.println(wifiApiKey);
+
+  			Serial.println();
+  			//Serial.println();
+
   			//Serial.println();
   			/*
   			//TODO NO MEMEORY !!!
   			Serial.println();
-
+  			 */
   			char msg[MESSAGELENGTH + 1];
   			for(int i = 0; i< MESSAGESCOUNT; i++) {
   				readMessage(i, (byte*)msg);
   				Serial.println(msg);
   			}
 
-  			*/
+  			Serial.println();
+  			Serial.println();
+  			//Serial.println();
    		}
   	}
 }
@@ -2293,6 +2367,67 @@ void uiSetClock() {
 	lcd.clear();
 }
 
+void uiSetWiFiSSID() {
+	Menu.enable(false);
+	//uiMenuBlocked = true;
+	uiState = UISTATE_EDITTEXT;
+	uiPage=0;
+	uiKeyTime = 0;
+	uiKeyPressed = 0;
+	lcd.clear();
+	lcd.print(F("SSID:"));
+	text = wifiSSID;
+	strncpy(tmp_text, text, 16);
+}
+void uiSetWiFiApiKey() {
+	Menu.enable(false);
+	//uiMenuBlocked = true;
+	uiState = UISTATE_EDITTEXT;
+	uiPage=0;
+	uiKeyTime = 0;
+	uiKeyPressed = 0;
+	lcd.clear();
+	lcd.print(F("THINGSPEAK KEY:"));
+	text = wifiApiKey;
+	strncpy(tmp_text, text, 16);
+}
+
+void uiWiFiReconnect() {
+	lcd.clear();
+	lcd.print(F("CONNECTING..."));
+	lcd.setCursor(0,1);
+	if(connectWiFi())
+		lcd.print(F("CONNECTED"));
+	else
+		lcd.print(F("ERROR"));
+	delay(1000);
+
+	Serial.println(wifiSSID);
+	for(int i=0; i < 16; i++) {
+		OMEEPROM::write(WIFISSID_ADDR + i, wifiSSID[i]);
+	}
+	Serial.println(wifiPass);
+	for(int i=0; i < 16; i++) {
+		OMEEPROM::write(WIFIPASS_ADDR + i, wifiPass[i]);
+	}
+	Serial.println(wifiApiKey);
+	for(int i=0; i < 16; i++) {
+		OMEEPROM::write(WIFIAPIKEY_ADDR + i, wifiApiKey[i]);
+	}
+
+}
+void uiSetWiFiPass() {
+	Menu.enable(false);
+	//uiMenuBlocked = true;
+	uiState = UISTATE_EDITTEXT;
+	uiPage=0;
+	uiKeyTime = 0;
+	uiKeyPressed = 0;
+	lcd.clear();
+	lcd.print(F("PASSWORD:"));
+	text = wifiPass;
+	strncpy(tmp_text, text, 16);
+}
 
 void uiScreen() {
 	//Menu.enable(false);
@@ -2429,7 +2564,7 @@ void uiScreen() {
 			}
 			lcd.setCursor(0, 1);
 			uiLcdPrintAlarm(levelHighAlarm2.active, levelLowAlarm2.active);
-			lcd.print(F("LEVEL[CM]:"));
+			lcd.print(F("LEVEL[-]:"));
 			lcd.print(level);
 			uiLcdPrintSpaces8();
 		}
@@ -2560,6 +2695,78 @@ void uiScreen() {
 		if(key==KPD_ESC) {
 			Menu.enable(true);
 			uiState=0;
+		}
+		*/
+	}
+
+	if(uiState == UISTATE_EDITTEXT) {
+
+		lcd.setCursor(0, 0);
+		//"0123456789ABCDEF"
+		//lcd.print(F("TEXT:"));
+
+		if(key == 'C')
+			uiPage++;
+		if(key == 'D')
+			uiPage--;
+
+		uiPage = max(0, uiPage);
+		uiPage = min(15, uiPage);
+
+		//text[0] = 64;
+		uint8_t i;
+		//strncpy(text2, text, 16);
+		i = tmp_text[uiPage];
+		if(key == KPD_UP) i++;
+		if(key == KPD_DOWN) i--;
+		i = max(32, i);
+		i = min(126, i);
+		tmp_text[uiPage] = (char)i;
+
+		lcd.setCursor(0, 1);
+		lcd.print(tmp_text);
+
+		uiLcdPrintSpaces8();
+		uiLcdPrintSpaces8();
+
+		if(secToggle) {
+			lcd.setCursor(uiPage, 1);
+			lcd.print('_');
+		}
+
+		//lcd.setCursor(uiPage, 1);
+		//lcd.print(char(i));
+
+		//Serial.println(uiChar);
+		//Serial.println();
+		//Serial.println(uiPage);
+		//Serial.println(i);
+		//Serial.println();
+
+		if(key == KPD_ENTER) {
+			tmp_text[uiPage+1] = 0;
+			for(int i=uiPage+2; i<16; i++)
+				tmp_text[i]=255;
+
+			//TODO: 15 or 16 chars?
+			tmp_text[16] = 0;
+
+			Serial.println(tmp_text);
+
+			strncpy(text, tmp_text, 16);
+
+			Menu.enable(true);
+			//uiState = UISTATE_MAIN;
+			//uiMenuBlocked = false;
+			//Menu.enable(true);
+			//uiState=0;
+		}
+
+		/*
+		if(key == KPD_ESC) {
+			//uiMenuBlocked = false;
+			Menu.enable(true);
+			uiState = UISTATE_MAIN;
 		}
 		*/
 	}
