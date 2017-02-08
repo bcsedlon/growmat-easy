@@ -250,6 +250,7 @@ unsigned long cyclerDuration = 0; // cycler counter
 float temperature, humidity, heatIndex, ph, ec, temperature2, level;
 float light;
 float extana, powerana;
+double ecPulseTime;
 
 // parameters
 unsigned int lightOnHour, lightOnMin, lightOffHour, lightOffMin;
@@ -1672,11 +1673,16 @@ void loop() {
 		//TODO:
 		//once per 10 seconds, offset 0
 		if (secondsCounter % 10 == 0) {
+			digitalWrite(ECENABLE_PIN, LOW);
+
 			oneWireSensors.requestTemperatures(); // Send the command to get temperatures
 			temperature2 = oneWireSensors.getTempCByIndex(0);
 			//Serial.println(temperature2);
 			//temperature2 = getTemp(oneWire);
 			//temperature2 = getTemp();
+			ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
+			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
+			digitalWrite(ECENABLE_PIN, HIGH);
 		}
 		/*
 		//once per 10 seconds, offset 1
@@ -1706,7 +1712,7 @@ void loop() {
 			extana = analogRead(EXTANA_PIN, SAMPLES) / 10.23;
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
-			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
+
 /*
 			//level =
 			digitalWrite(SR04TX_PIN, LOW);
@@ -2119,6 +2125,7 @@ void loop() {
   		//incomingByte = Serial.read();
 
   		String text = Serial.readString();
+  		//Serial.println(text);
 
 #define MESSAGE_CMD_SERIAL1 "#S2"
   		int pos = text.indexOf(MESSAGE_CMD_SERIAL1);
@@ -2184,6 +2191,8 @@ void loop() {
 		if (text.indexOf(MESSAGE_CMD_REQUEST)!=-1 ) {
   		//if (text.indexOf("?")!=-1 ) {
   		//if (Serial.readString().indexOf("?")!=-1 ) {
+			//Serial.println("text");
+
 			Serial.println();
 
 
@@ -2535,8 +2544,8 @@ void uiScreen() {
 			lcd.setCursor(0, 1);
 			lcd.print(F(" EC X[-]:"));
 			//TODO:
-			double pulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
-			lcd.print(pulseTime);
+			//double ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
+			lcd.print(ecPulseTime);
 			uiLcdPrintSpaces8();
 
 		}
