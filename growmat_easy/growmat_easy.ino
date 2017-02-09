@@ -131,36 +131,36 @@ const byte KPD_COLS = 4;
 #define MESSAGE_CYCLER_CONTROL "C:"
 
 //                              "0123456789ABCDEF"
-#define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON x"
-#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm T +x"
-#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm T -x"
-#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm L +x"
-#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm L -x"
+#define MESSAGE_ALARM_POWERON   "dd/mm hh:mm ON+x"
+#define MESSAGE_ALARM_TEMPHIGH  "dd/mm hh:mm TA+x"
+#define MESSAGE_ALARM_TEMPLOW   "dd/mm hh:mm TA-x"
+#define MESSAGE_ALARM_LIGHTHIGH "dd/mm hh:mm LA+x"
+#define MESSAGE_ALARM_LIGHTLOW  "dd/mm hh:mm LA-x"
 #define MESSAGE_ALARM_EXTERNAL  "dd/mm hh:mm EX x"
 #define MESSAGE_ALARM_PHHIGH	"dd/mm hh:mm PH+x"
 #define MESSAGE_ALARM_PHLOW     "dd/mm hh:mm PH-x"
 #define MESSAGE_ALARM_ECHIGH	"dd/mm hh:mm EC+x"
 #define MESSAGE_ALARM_ECLOW     "dd/mm hh:mm EC-x"
-#define MESSAGE_ALARM_HUMIHIGH	"dd/mm hh:mm H +x"
-#define MESSAGE_ALARM_HUMILOW   "dd/mm hh:mm H -x"
-#define MESSAGE_ALARM_LEVELHIGH	"dd/mm hh:mm D +x"
-#define MESSAGE_ALARM_LEVELLOW  "dd/mm hh:mm D -x"
-#define MESSAGE_ALARM_POWER     "dd/mm hh:mm PW x"
+#define MESSAGE_ALARM_HUMIHIGH	"dd/mm hh:mm HA+x"
+#define MESSAGE_ALARM_HUMILOW   "dd/mm hh:mm HA-x"
+#define MESSAGE_ALARM_LEVELHIGH	"dd/mm hh:mm LV+x"
+#define MESSAGE_ALARM_LEVELLOW  "dd/mm hh:mm LV-x"
+#define MESSAGE_ALARM_POWER     "dd/mm hh:mm PW-x"
 #define MESSAGE_ALARM_ON  '1'
 #define MESSAGE_ALARM_OFF '0'
 
 //const char MESSAGE_TEMPHIGH[] PROGMEM  = {"T+!"};
-#define MESSAGE_TEMPHIGH "T+!"
-#define MESSAGE_TEMPLOW "T-!"
-#define MESSAGE_LIGHTHIGH "L+!"
-#define MESSAGE_LIGHTLOW "L-!"
+#define MESSAGE_TEMPHIGH "TA+!"
+#define MESSAGE_TEMPLOW "TA-!"
+#define MESSAGE_LIGHTHIGH "LA+!"
+#define MESSAGE_LIGHTLOW "LA-!"
 #define MESSAGE_EXTERNAL "EX!"
-#define MESSAGE_HUMIHIGH "H+!"
-#define MESSAGE_HUMILOW "H-!"
+#define MESSAGE_HUMIHIGH "HA+!"
+#define MESSAGE_HUMILOW "HA-!"
 //const char MESSAGE_POWERLOW[] PROGMEM  = {"PW!"};
-#define MESSAGE_POWERLOW "PW!"
-#define MESSAGE_LEVELHIGH "D+!"
-#define MESSAGE_LEVELLOW "D-!"
+#define MESSAGE_POWERLOW "PW-!"
+#define MESSAGE_LEVELHIGH "LV+!"
+#define MESSAGE_LEVELLOW "LV-!"
 
 //const char MESSAGE_TEMP[] PROGMEM = {"TA="};
 #define MESSAGE_TEMP "TA="
@@ -327,8 +327,8 @@ class Alarm {
 
  public:
 	// TODO: fix when millis overrun!!!
-	int alarmActiveDelay = 5000;
-	int alarmDeactiveDelay = 5000;
+	int alarmActiveDelay = 10000;
+	int alarmDeactiveDelay = 10000;
 	bool active;
 	bool unAck;
 
@@ -607,6 +607,8 @@ public:
 						if(levelLowAlarm2.active) sim->sendSmsTextLn(MESSAGE_LEVELLOW);
 						if(powerAlarm2.active) sim->sendSmsTextLn(MESSAGE_POWERLOW);
 
+						sim->sendSmsText('\n');
+
 						lightControl = getInstrumentControl(lightAuto, lightMode);
 						heaterControl = getInstrumentControl(heaterAuto, heaterMode);
 						fanControl = getInstrumentControl(fanAuto, fanMode);
@@ -624,6 +626,7 @@ public:
 						sim->sendSmsText(" C");
 						cyclerControl ? sim->sendSmsText('1'):sim->sendSmsText('0');
 						cyclerMode ? sim->sendSmsText('M'):sim->sendSmsText('A');
+						sim->sendSmsText('\n');
 						sim->sendSmsText('\n');
 
 						sim->sendSmsText(MESSAGE_TEMP);
@@ -1732,7 +1735,7 @@ void loop() {
 			level = -distance;
 	*/
 			level = analogRead(LEVELANA_PIN, SAMPLES)/10.23;
-			if(level > 50 )
+			if(level < 50 )
 				level = 1.0;
 			else
 				level = 0.0;
