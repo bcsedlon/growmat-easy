@@ -1027,7 +1027,6 @@ MENU_ITEM menu_submenu7 = { {"WIFI->"},  ITEM_MENU,  MENU_SIZE(submenu_list7),  
 
 //        List of items in menu level
 MENU_LIST const root_list[]   = {  &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6, &menu_submenu_ph, &menu_submenu_ec, &item_reset, &menu_submenu7 };//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
-
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
 
@@ -1036,6 +1035,7 @@ OMMenuMgr2 Menu(&menu_root, MENU_DIGITAL, &kpd);
 
 
 int saveMessage(char msg[], char status) {
+	//Serial.println(msg);
 	if((gsmNumber[2] != '0') && status == MESSAGE_ALARM_ON) {
 		gsmMgr.call();
 	}
@@ -1046,7 +1046,7 @@ int saveMessage(char msg[], char status) {
 	itoa(now.day(), p, 10);
 	msg[2]='/';
 
-		p = msg + 3;
+	p = msg + 3;
 	if(now.month() < 10)
 	   itoa(0, p++, 10);
 	itoa(now.month(), p, 10);
@@ -1061,8 +1061,10 @@ int saveMessage(char msg[], char status) {
 	   itoa(0, p++, 10);
 	itoa(now.minute(), p, 10);
 
-    msg[11]= ' ';
+	//Serial.println(msg);
+	msg[11]= ' ';
     msg[15] = status;
+    //Serial.println(msg);
 
     int offset;
     OMEEPROM::read(MESSAGESOFFSET_ADDR, offset);
@@ -1073,6 +1075,8 @@ int saveMessage(char msg[], char status) {
     }
     offset = (offset + 1) %  MESSAGESCOUNT;
     OMEEPROM::write(MESSAGESOFFSET_ADDR, offset);
+
+    //Serial.println(msg);
     return offset;
 }
 
@@ -2090,25 +2094,7 @@ void loop() {
 	if(powerAlarm2.deactivate(!powerAlarm))
 		saveMessage(MESSAGE_ALARM_POWER, MESSAGE_ALARM_OFF);
 
-	if(phHighAlarm2.activate(ph > phHighPhAlarm))
-		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);
-	if(phHighAlarm2.deactivate(ph < (phHighPhAlarm - phHysteresis)))
-		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_OFF);
 
-	if(phLowAlarm2.activate(ph < phLowAlarm))
-		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);
-	if(phLowAlarm2.deactivate(ph > (phLowAlarm + phHysteresis)))
-		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_OFF);
-
-	if(ecHighAlarm2.activate(ec > ecHighAlarm))
-		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);
-	if(ecHighAlarm2.deactivate(ec < (ecHighAlarm - ecHysteresis)))
-		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_OFF);
-
-	if(ecLowAlarm2.activate(ec < ecLowAlarm))
-		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);
-	if(ecLowAlarm2.deactivate(ec > (ecLowAlarm + ecHysteresis)))
-		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_OFF);
 
 	if(humiHighAlarm2.activate(humidity > humiHighAlarm))
 		saveMessage(MESSAGE_ALARM_HUMIHIGH, MESSAGE_ALARM_ON);
@@ -2132,11 +2118,32 @@ void loop() {
 	if(levelLowAlarm2.deactivate(level > (levelLowAlarm + levelHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 	*/
+#ifdef __HYDRO__
+	if(phHighAlarm2.activate(ph > phHighPhAlarm))
+		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);
+	if(phHighAlarm2.deactivate(ph < (phHighPhAlarm - phHysteresis)))
+		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_OFF);
+
+	if(phLowAlarm2.activate(ph < phLowAlarm))
+		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);
+	if(phLowAlarm2.deactivate(ph > (phLowAlarm + phHysteresis)))
+		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_OFF);
+
+	if(ecHighAlarm2.activate(ec > ecHighAlarm))
+		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);
+	if(ecHighAlarm2.deactivate(ec < (ecHighAlarm - ecHysteresis)))
+		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_OFF);
+
+	if(ecLowAlarm2.activate(ec < ecLowAlarm))
+		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);
+	if(ecLowAlarm2.deactivate(ec > (ecLowAlarm + ecHysteresis)))
+		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_OFF);
+
 	if(levelLowAlarm2.activate(level < 1.0 ))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
 	if(levelLowAlarm2.deactivate(level > 0.0))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
-
+#endif
 
 	if(kpd.getRawKey()) {
 		tempHighAlarm2.ack();
