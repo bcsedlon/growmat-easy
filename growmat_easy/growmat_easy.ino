@@ -1,5 +1,11 @@
+//#define __HYDRO__
+
 #define TEXT_GROWMATEASY "GROWMAT EASY"
 #define VERSION 1
+
+#include "libraries/MLP/filter.h"
+ExponentialFilter<float> phFiltered(20, 0);
+ExponentialFilter<float> ecFiltered(20, 0);
 
 #include "libraries/RF433/RF433.h"
 #define RFRX_PIN A4
@@ -15,11 +21,11 @@ byte rf4off[] = {4,11,3,4,3,10,3,11,3,11,3,11,3,11,3,10,3,4,3,11,3,11,3,10,3,4,3
 byte rf4on[] = {4,4,3,10,4,89,4,3,3,3,29,30,3,4,3,3,3,11,3,11,3,10,3,4,3,3,3,11,3,4,3,3,3,4,3,3,3,4,3,3,3,11,3,4,3,11,3,11,3,3,3,4,3,3,3,11,3,11,3,3,3,11,3,11,3,11,3,11,2,11,3,11,3,3,4,11,3,3,3,4,3,10,3,4,3,11,3,10,3,4,3,11,3,188,3,3,3,3,30,29,3,4,3,3,3,11,3,11,3,10,4,3,3,3,4,11,3,3,3,4,3,3,3,4,3};
 
 
-#define LCD_I2CADDR 0x20
+#define LCD_I2CADDR 0x3F
 const byte LCD_ROWS = 2;
 const byte LCD_COLS = 16;
 
-#define KPD_I2CADDR 0x20
+#define KPD_I2CADDR 0x38
 const byte KPD_ROWS = 4;
 const byte KPD_COLS = 4;
 
@@ -688,6 +694,10 @@ RTC_DS3231 rtc;
 #include "libraries/DHT-sensor-library-master/DHT.h"
 DHT dht(DHT_PIN, DHTTYPE);
 
+// LCD i2c
+#include "libraries/NewliquidCrystal/LiquidCrystal_I2C.h"
+LiquidCrystal_I2C lcd(LCD_I2CADDR, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
 // Keypad 4x4 i2c
 #include "libraries/Keypad_I2C/Keypad_I2C.h"
 #include "libraries/Keypad/Keypad.h"
@@ -731,6 +741,19 @@ public:
 
     	getKeys();
 
+    	if(bitMap[3] == 8) {
+    	    		if(bitMap[0] == 8) {
+    	    			lcd.begin(LCD_COLS, LCD_ROWS);
+    	    			lcd.print(TEXT_GROWMATEASY);
+    	    			delay(500);
+    	    		}
+    	    		if(bitMap[1] == 8) {
+    	    			//TODO watchdog test
+    	    			lcd.clear();
+    	    			lcd.print(F("WATCHDOG TEST"));
+    	    			while(true) {};
+    	    		}
+    	}
     	//TODO !!! Dirty trick !!!
     	if(bitMap[3] == 4) {
     		if(bitMap[2] == 8) lightMode=1;
@@ -797,9 +820,7 @@ byte rowPins[KPD_ROWS] = {0, 1, 2, 3}; //connect to the row pinouts of the keypa
 byte colPins[KPD_COLS] = {4, 5, 6, 7}; //connect to the column pinouts of the keypad
 Keypad_I2C2 kpd( makeKeymap(keys), rowPins, colPins, KPD_ROWS, KPD_COLS, KPD_I2CADDR, PCF8574 );
 
-// LCD i2c
-#include "libraries/NewliquidCrystal/LiquidCrystal_I2C.h"
-LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
 
 // Menu
 #include "libraries/OMEEPROM/OMEEPROM.h"
@@ -918,8 +939,8 @@ MENU_ITEM tempLowNightAlarm_item   ={ {"TEMP LOW  N [C]"},    ITEM_VALUE,  0,   
 //                               TYPE             MAX    MIN    TARGET
 MENU_VALUE phLowX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phLowX), PHLOWX_ADDR };
 MENU_VALUE phHighX_value = 	   { TYPE_UINT,       1023,  0,     MENU_TARGET(&phHighX), PHHIGHX_ADDR };
-MENU_VALUE phLowY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phLowY), PHLOWY_ADDR };
-MENU_VALUE phHighY_value =	   { TYPE_FLOAT,      14,    0,     MENU_TARGET(&phHighY), PHHIGHY_ADDR };
+MENU_VALUE phLowY_value =	   { TYPE_FLOAT_10,      14,    0,     MENU_TARGET(&phLowY), PHLOWY_ADDR };
+MENU_VALUE phHighY_value =	   { TYPE_FLOAT_10,      14,    0,     MENU_TARGET(&phHighY), PHHIGHY_ADDR };
 
 //                                "123456789ABCDEF"
 MENU_ITEM phLowX_item   =   { {"PH LOW  X   [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&phLowX_value) };
@@ -933,8 +954,8 @@ MENU_ITEM menu_submenu_ph = { {"PH->"},  ITEM_MENU,  MENU_SIZE(submenu_list_ph),
 //                               TYPE             MAX    MIN    TARGET
 MENU_VALUE ecLowX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecLowX), ECLOWX_ADDR };
 MENU_VALUE ecHighX_value = 	   { TYPE_UINT,       0,  0,     MENU_TARGET(&ecHighX), ECHIGHX_ADDR };
-MENU_VALUE ecLowY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecLowY), ECLOWY_ADDR };
-MENU_VALUE ecHighY_value =	   { TYPE_FLOAT,      0,    0,     MENU_TARGET(&ecHighY), ECHIGHY_ADDR };
+MENU_VALUE ecLowY_value =	   { TYPE_FLOAT_10,      0,    0,     MENU_TARGET(&ecLowY), ECLOWY_ADDR };
+MENU_VALUE ecHighY_value =	   { TYPE_FLOAT_10,      0,    0,     MENU_TARGET(&ecHighY), ECHIGHY_ADDR };
 
 //                                "123456789ABCDEF"
 MENU_ITEM ecLowX_item   =   { {"EC LOW  X   [-]"},   	ITEM_VALUE,  0,        MENU_TARGET(&ecLowX_value) };
@@ -1274,6 +1295,10 @@ void saveDefaultEEPROM() {
 // setup
 //////////////////////////////////
 void setup() {
+
+	//lamp off is slow
+	lightHighAlarm2.alarmActiveDelay = 300000; //5m
+	lightLowAlarm2.alarmActiveDelay = 60000; //60s
 
 	oneWireSensors.begin();
 
@@ -1663,6 +1688,7 @@ void loop() {
 		//newSecond = true;
 		secondsCounter++;
 
+#ifdef __HYDRO__
 		if (secondsCounter % 120 == 0) {
 			//if(!isConnectedWiFi())
 			//	connectWiFi();
@@ -1673,20 +1699,24 @@ void loop() {
 				updateTS();//s_value_0,s_value_1, s_value_2);
 			//}
 		}
+#endif
 		//TODO:
 		//once per 10 seconds, offset 0
 		if (secondsCounter % 10 == 0) {
-			digitalWrite(ECENABLE_PIN, LOW);
-
+			//digitalWrite(ECENABLE_PIN, LOW);
+#ifdef __HYDRO__
 			oneWireSensors.requestTemperatures(); // Send the command to get temperatures
 			temperature2 = oneWireSensors.getTempCByIndex(0);
 			//Serial.println(temperature2);
 			//temperature2 = getTemp(oneWire);
 			//temperature2 = getTemp();
-			ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
-			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
-			digitalWrite(ECENABLE_PIN, HIGH);
+
+			//ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
+			//ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
+			//digitalWrite(ECENABLE_PIN, HIGH);
+#endif
 		}
+
 		/*
 		//once per 10 seconds, offset 1
 		else if(secondsCounter % 10 == 1) {
@@ -1714,8 +1744,22 @@ void loop() {
 			light = 100-(analogRead(LIGHT_PIN, SAMPLES) / 10.23);
 			extana = analogRead(EXTANA_PIN, SAMPLES) / 10.23;
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
+
+#ifdef __HYDRO__
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
 
+			phFiltered.Filter(ph);
+			ph = phFiltered.Current();
+
+			digitalWrite(ECENABLE_PIN, LOW);
+			ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
+			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
+
+			if((temperature2 > -100.0) && (temperature2 < 100.0))
+				ec = ec / (1.0 + (0.02 * (temperature2 - 25.0)));
+
+			ecFiltered.Filter(ec);
+			ec = ecFiltered.Current();
 /*
 			//level =
 			digitalWrite(SR04TX_PIN, LOW);
@@ -1740,6 +1784,7 @@ void loop() {
 			else
 				level = 0.0;
 			//level = ~digitalRead();
+#endif
 		}
 
 		if(lightAuto) {
