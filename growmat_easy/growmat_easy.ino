@@ -1,6 +1,20 @@
-//#define __HYDRO__
-#define SMSINDEX 21 //1
-#define KPD_I2CADDR 0x20 //0x38//0x20
+//#define __TEMP2__
+//#define __LEVEL__
+//#define __PH__
+//#define __EC__
+//#define __RC__
+//#define __WIFI__
+
+
+//001 relay
+//#define SMSINDEX 21 //1
+//#define KPD_I2CADDR 0x20 //0x38//0x20
+
+//002 rc
+#define __RC__
+#define SMSINDEX 1
+#define KPD_I2CADDR 0x38
+
 
 #define TEXT_GROWMATEASY "GROWMAT EASY"
 #define VERSION 1
@@ -42,7 +56,9 @@ const byte KPD_COLS = 4;
 
 
 #define POWERANA_PIN A2
-#define LEVELANA_PIN A3
+
+
+
 
 
 #define ONEWIREBUS_PIN 5
@@ -60,8 +76,10 @@ const byte KPD_COLS = 4;
 //#define PHTAPPIN A4
 //#define PHTDPIN
 
-#define SR04TX_PIN 7
-#define SR04RX_PIN 12
+//#define SR04TX_PIN 7
+//#define SR04RX_PIN 12
+#define LEVEL_PIN 12
+//#define LEVELANA_PIN A3
 
 #define SAMPLES 10
 
@@ -408,10 +426,12 @@ public:
 
 	bool Sim800l2::sendSmsBegin(char* number){
 		printSerial("AT+CMGF=1\r"); //set sms to text mode
-	    _buffer=_readSerial();
+		wdt_reset();
+		_buffer=_readSerial();
 	    printSerial("AT+CMGS=\"");  // command to send sms
 	    printSerial(number);
 	    printSerial("\"\r");
+	    wdt_reset();
 	    _buffer=_readSerial();
 	    return true;
 	}
@@ -444,6 +464,7 @@ public:
 		printSerial("\r");
 		delay(100);
 		printSerial((char)26);
+		wdt_reset();
 		_buffer=_readSerial();
 		//expect CMGS:xxx   , where xxx is a number,for the g sms.
 		if (((_buffer.indexOf("CMGS") ) != -1 ) )
@@ -569,20 +590,26 @@ public:
 								sim->sendSmsText(powerana);
 								sim->sendSmsText('\n');
 
-		#ifdef __HYDRO__
+#ifdef __TEMP2__
 								sim->sendSmsText(MESSAGE_TEMP2);
 								sim->sendSmsText(temperature2);
 								sim->sendSmsText('\n');
+#endif
+#ifdef __PH__
 								sim->sendSmsText(MESSAGE_PH);
 								sim->sendSmsText(ph);
 								sim->sendSmsText('\n');
+#endif
+#ifdef __EC__
 								sim->sendSmsText(MESSAGE_EC);
 								sim->sendSmsText(ec);
 								sim->sendSmsText('\n');
+#endif
+#ifdef __LEVEL__
 								sim->sendSmsText(MESSAGE_LEVEL);
 								sim->sendSmsText(level);
 								sim->sendSmsText('\n');
-		#endif
+#endif
 								sim->sendSmsText(MESSAGE_GSM);
 								sim->sendSmsText(gsmMode);
 								sim->sendSmsText("\n");
@@ -948,14 +975,14 @@ MENU_LIST const submenu_list4[] = { &cyclerMode_item, &cyclerOnMin_item, &cycler
 MENU_ITEM menu_submenu4 = { {"CYCLER->"},  ITEM_MENU,  MENU_SIZE(submenu_list4),  MENU_TARGET(&submenu_list4) };
 
 // Alarms
-MENU_VALUE tempHighAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighNightAlarm), TEMPHIGHALARM_ADDR };
+MENU_VALUE tempHighAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighAlarm), TEMPHIGHALARM_ADDR };
 MENU_ITEM tempHighAlarm_item   ={ {"TEMP HIGH   [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighAlarm_value) };
-MENU_VALUE tempLowAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowNightAlarm), TEMPLOWALARM_ADDR };
+MENU_VALUE tempLowAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowAlarm), TEMPLOWALARM_ADDR };
 MENU_ITEM tempLowAlarm_item   ={ {"TEMP LOW    [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowAlarm_value) };
 
-MENU_VALUE tempHighNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighAlarm), TEMPHIGHNIGHTALARM_ADDR };
+MENU_VALUE tempHighNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempHighNightAlarm), TEMPHIGHNIGHTALARM_ADDR };
 MENU_ITEM tempHighNightAlarm_item   ={ {"TEMP HIGH N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempHighNightAlarm_value) };
-MENU_VALUE tempLowNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowAlarm), TEMPLOWNIGHTALARM_ADDR };
+MENU_VALUE tempLowNightAlarm_value={ TYPE_FLOAT_10, 99,    -99,    MENU_TARGET(&tempLowNightAlarm), TEMPLOWNIGHTALARM_ADDR };
 MENU_ITEM tempLowNightAlarm_item   ={ {"TEMP LOW  N [C]"},    ITEM_VALUE,  0,        MENU_TARGET(&tempLowNightAlarm_value) };
 
 //                               TYPE             MAX    MIN    TARGET
@@ -1021,8 +1048,11 @@ MENU_LIST const submenu_list5[] = { &tempHighAlarm_item, &tempLowAlarm_item, &hu
 			&phLowAlarm_item, &phHighPhAlarm_item, &ecLowAlarm_item, &ecHighAlarm_item,  &levelLowAlarm_item, &levelHighAlarm_item, &externalModeAlarm_item};
 */
 MENU_LIST const submenu_list5[] = { &tempHighAlarm_item, &tempLowAlarm_item, &humiHighAlarm_item, &humiLowAlarm_item,  &tempHighNightAlarm_item, &tempLowNightAlarm_item, &lightHighAlarm_item, &lightLowAlarm_item, &externalModeAlarm_item
-#ifdef __HYDRO__
-		, &phLowAlarm_item, &phHighPhAlarm_item, &ecLowAlarm_item, &ecHighAlarm_item
+#ifdef __PH__
+		, &phLowAlarm_item, &phHighPhAlarm_item
+#endif
+#ifdef __EC__
+		, &ecLowAlarm_item, &ecHighAlarm_item
 #endif
 };
 
@@ -1051,11 +1081,17 @@ MENU_LIST const submenu_list7[] = { &item_setWiFiSSID, &item_setWiFiPass, &item_
 MENU_ITEM menu_submenu7 = { {"WIFI->"},  ITEM_MENU,  MENU_SIZE(submenu_list7),  MENU_TARGET(&submenu_list7) };
 
 //        List of items in menu level
-MENU_LIST const root_list[]   = {  &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6,
-#ifdef __HYDRO__
-		&menu_submenu_ph, &menu_submenu_ec, &menu_submenu7,
+MENU_LIST const root_list[]   = {  &menu_submenu1 , &menu_submenu2, &menu_submenu3, &menu_submenu4, &menu_submenu5, &item_setClock, &menu_submenu6
+#ifdef __PH__
+		,&menu_submenu_ph
 #endif
-		&item_reset};//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
+#ifdef __EC__
+		,&menu_submenu_ec
+#endif
+#ifdef __WIFI__
+		, &menu_submenu7
+#endif
+		,&item_reset};//&item_alarmList, &item_testme, , &item_info//&item_bazme, &item_bakme,
 // Root item is always created last, so we can add all other items to it
 MENU_ITEM menu_root     = { {"Root"},        ITEM_MENU,   MENU_SIZE(root_list),    MENU_TARGET(&root_list) };
 
@@ -1338,8 +1374,11 @@ void setup() {
 
 	oneWireSensors.begin();
 
-	pinMode(SR04RX_PIN, INPUT);
-	pinMode(SR04TX_PIN, OUTPUT);
+	//pinMode(SR04RX_PIN, INPUT);
+	//pinMode(SR04TX_PIN, OUTPUT);
+	//TODO
+	pinMode(LEVEL_PIN ,INPUT_PULLUP);
+	pinMode(LEVEL_PIN, INPUT);
 
 	pinMode(ECINPUT_PIN ,INPUT_PULLUP);
 	pinMode(ECENABLE_PIN ,OUTPUT);
@@ -1413,7 +1452,7 @@ void setup() {
 	Menu.setExitHandler(uiMain);
 	Menu.enable(true);
 
-#ifdef __HYDRO__
+#ifdef __WIFI__
 	Serial2.begin(115200);
 		while(!Serial);
 	connectWiFi();
@@ -1731,7 +1770,7 @@ void loop() {
 		//newSecond = true;
 		secondsCounter++;
 
-#ifdef __HYDRO__
+#ifdef __WIFI__
 		if (secondsCounter % 120 == 0) {
 			//if(!isConnectedWiFi())
 			//	connectWiFi();
@@ -1747,7 +1786,7 @@ void loop() {
 		//once per 10 seconds, offset 0
 		if (secondsCounter % 10 == 0) {
 			//digitalWrite(ECENABLE_PIN, LOW);
-#ifdef __HYDRO__
+#ifdef __TEMP2__
 			oneWireSensors.requestTemperatures(); // Send the command to get temperatures
 			temperature2 = oneWireSensors.getTempCByIndex(0);
 			//Serial.println(temperature2);
@@ -1788,13 +1827,15 @@ void loop() {
 			extana = analogRead(EXTANA_PIN, SAMPLES) / 10.23;
 			powerana = analogRead(POWERANA_PIN, SAMPLES) / 10.23;
 
-#ifdef __HYDRO__
+#ifdef __PH__
 			ph = calcPH(analogRead(PHANA_PIN, SAMPLES));
 
 			phFiltered.Filter(ph);
 			ph = phFiltered.Current();
 
 			digitalWrite(ECENABLE_PIN, LOW);
+#endif
+#ifdef __EC__
 			ecPulseTime = (double)((pulseIn(ECINPUT_PIN, LOW) + pulseIn(ECINPUT_PIN, HIGH)) / 2 + 2);
 			ec = calcEC(pulseIn(ECINPUT_PIN, LOW), pulseIn(ECINPUT_PIN, HIGH));
 
@@ -1821,12 +1862,15 @@ void loop() {
 			}
 			level = -distance;
 	*/
-			level = analogRead(LEVELANA_PIN, SAMPLES)/10.23;
-			if(level < 50 )
-				level = 1.0;
-			else
-				level = 0.0;
+#endif
+#ifdef __LEVEL__
+			//level = analogRead(LEVELANA_PIN, SAMPLES)/10.23;
+			//if(level < 50 )
+			//	level = 1.0;
+			//else
+			//	level = 0.0;
 			//level = ~digitalRead();
+			level = digitalRead(LEVEL_PIN);
 #endif
 		}
 
@@ -1840,7 +1884,7 @@ void loop() {
 		}
 
 		//TODO:
-		//once per 5 seconds, offset 8
+#ifdef __RC__
 		bool rcUpdate = (secondsCounter % 10 == 0);
 
 		if(lightMode != 3 ) {
@@ -1871,7 +1915,7 @@ void loop() {
 				delay(50);
 			}
 		}
-
+#endif
 		//cyclerDuration += now.secondstime() - secondstime ;
 		//TOD add real time diference
 		cyclerDuration++;
@@ -2105,14 +2149,12 @@ void loop() {
 	if(lightHighAlarm2.deactivate(lightControl || (light < lightHighAlarm - lightHysteresis)))
 		saveMessage(MESSAGE_ALARM_LIGHTHIGH, MESSAGE_ALARM_OFF);
 
-#ifdef __HYDRO___
-	externalAlarm = extana > 50; //digitalRead(EXT_PIN);
+	//externalAlarm = extana > 50;
+	externalAlarm = digitalRead(EXT_PIN);
 	if(externalModeAlarm == 0) {
 		// alarm in 0
 		externalAlarm = !externalAlarm;
 	}
-
-
 	//else if (externalModeAlarm == 1) {
 		// alarm in 1
 		//externalAlarm = externalAlarm;
@@ -2122,7 +2164,6 @@ void loop() {
 	if(externalModeAlarm == 2)
 		externalAlarm = 0;
 	//}
-#endif
 
 	if(externalAlarm2.activate(externalAlarm))
 		saveMessage(MESSAGE_ALARM_EXTERNAL, MESSAGE_ALARM_ON);
@@ -2159,7 +2200,7 @@ void loop() {
 	if(levelLowAlarm2.deactivate(level > (levelLowAlarm + levelHysteresis)))
 		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
 	*/
-#ifdef __HYDRO__
+#ifdef __PH__
 	if(phHighAlarm2.activate(ph > phHighPhAlarm))
 		saveMessage(MESSAGE_ALARM_PHHIGH, MESSAGE_ALARM_ON);
 	if(phHighAlarm2.deactivate(ph < (phHighPhAlarm - phHysteresis)))
@@ -2169,7 +2210,8 @@ void loop() {
 		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_ON);
 	if(phLowAlarm2.deactivate(ph > (phLowAlarm + phHysteresis)))
 		saveMessage(MESSAGE_ALARM_PHLOW, MESSAGE_ALARM_OFF);
-
+#endif
+#ifdef __EC__
 	if(ecHighAlarm2.activate(ec > ecHighAlarm))
 		saveMessage(MESSAGE_ALARM_ECHIGH, MESSAGE_ALARM_ON);
 	if(ecHighAlarm2.deactivate(ec < (ecHighAlarm - ecHysteresis)))
@@ -2179,11 +2221,12 @@ void loop() {
 		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_ON);
 	if(ecLowAlarm2.deactivate(ec > (ecLowAlarm + ecHysteresis)))
 		saveMessage(MESSAGE_ALARM_ECLOW, MESSAGE_ALARM_OFF);
-
+#endif
+#ifdef __LEVEL__
 	if(levelLowAlarm2.activate(level < 1.0 ))
-		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_ON);
+		saveMessage(MESSAGE_ALARM_LEVELLOW, MESSAGE_ALARM_ON);
 	if(levelLowAlarm2.deactivate(level > 0.0))
-		saveMessage(MESSAGE_ALARM_HUMILOW, MESSAGE_ALARM_OFF);
+		saveMessage(MESSAGE_ALARM_LEVELLOW, MESSAGE_ALARM_OFF);
 #endif
 
 	if(kpd.getRawKey()) {
@@ -2596,7 +2639,7 @@ void uiScreen() {
 		uiPage = max(0, uiPage);
 		uiPage = min(5, uiPage);
 
-#ifndef __HYDRO__
+#ifdef __PH__ or __EC__ or __TEMP2__ or __LEVEL__
 		uiPage = min(2, uiPage);
 #endif
 
@@ -2644,7 +2687,7 @@ void uiScreen() {
 			lcd.print(int(extana));
 			uiLcdPrintSpaces8();
 		}
-#ifdef __HYDRO__
+#ifdef __PH__ or __EC__ or __TEMP2__ or __LEVEL__
 		else if(uiPage == 3) {
 			lcd.setCursor(0, 0);
 			uiLcdPrintAlarm(phHighAlarm2.active, phLowAlarm2.active);
